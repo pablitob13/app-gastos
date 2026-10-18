@@ -1,4 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Registro de Service Worker para soporte PWA y modo Offline
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => {
+                    console.log('Service Worker registrado con éxito:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Error al registrar Service Worker:', error);
+                });
+        });
+    }
+
     const STORAGE_KEY = 'monthly_expenses_app';
 
     // Estado en memoria

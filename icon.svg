@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e2942"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Fondo redondeado estilo app icon -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+
+  <!-- Tarjeta frontal -->
+  <g filter="url(#shadow)">
+    <rect x="76" y="120" width="360" height="272" rx="32" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="4" stroke-opacity="0.3"/>
+    
+    <!-- Banda magnética / franja superior -->
+    <rect x="76" y="170" width="360" height="44" fill="#0b1120"/>
+
+    <!-- Gráfico / barras dentro de la tarjeta -->
+    <rect x="116" y="310" width="28" height="42" rx="6" fill="#818cf8"/>
+    <rect x="156" y="270" width="28" height="82" rx="6" fill="#34d399"/>
+    <rect x="196" y="295" width="28" height="57" rx="6" fill="#38bdf8"/>
+
+    <!-- Símbolo de moneda / Euro estilizado -->
+    <circle cx="360" cy="305" r="42" fill="#38bdf8" fill-opacity="0.15" stroke="#38bdf8" stroke-width="4"/>
+    <path d="M 374 286 C 368 281 356 280 348 286 C 338 293 336 312 346 322 C 353 328 366 328 374 322 M 334 299 L 362 299 M 334 309 L 360 309" 
+          fill="none" stroke="#f8fafc" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>
