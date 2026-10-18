@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control de Gastos Mensuales</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Mis Gastos</h1>
+            <div class="month-selector-wrapper">
+                <label for="month-filter" class="sr-only">Seleccionar mes</label>
+                <input type="month" id="month-filter" class="month-input">
+            </div>
+        </header>
+
+        <!-- Resumen visual superior -->
+        <section class="summary-section" aria-label="Resumen de gastos">
+            <div class="summary-card total">
+                <span class="card-label">Total del Mes</span>
+                <span class="card-amount" id="total-amount">0,00 €</span>
+            </div>
+            <div class="summary-row">
+                <div class="summary-card fixed">
+                    <span class="card-label">Fijos</span>
+                    <span class="card-amount" id="total-fixed">0,00 €</span>
+                </div>
+                <div class="summary-card personal">
+                    <span class="card-label">Personales</span>
+                    <span class="card-amount" id="total-personal">0,00 €</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Formulario de nuevo gasto -->
+        <section class="form-section">
+            <form id="expense-form" class="expense-form" autocomplete="off">
+                <h2 class="section-title">Nuevo Gasto</h2>
+                
+                <div class="form-group">
+                    <label for="expense-concept">Concepto</label>
+                    <input type="text" id="expense-concept" placeholder="Ej. Alquiler, Supermercado..." required maxlength="60">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="expense-amount">Importe (€)</label>
+                        <input type="number" id="expense-amount" step="0.01" min="0.01" placeholder="0.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="expense-date">Fecha</label>
+                        <input type="date" id="expense-date" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="expense-type">Tipo de Gasto</label>
+                    <select id="expense-type" required>
+                        <option value="fijo">Gasto Fijo</option>
+                        <option value="personal">Gasto Personal</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="btn-submit">
+                    Añadir Gasto
+                </button>
+            </form>
+        </section>
+
+        <!-- Listado y Filtros -->
+        <section class="list-section">
+            <div class="list-header">
+                <h2 class="section-title">Movimientos</h2>
+                <div class="filter-pills" role="radiogroup" aria-label="Filtro por tipo de gasto">
+                    <button type="button" class="pill active" data-filter="all">Todos</button>
+                    <button type="button" class="pill" data-filter="fijo">Fijos</button>
+                    <button type="button" class="pill" data-filter="personal">Personales</button>
+                </div>
+            </div>
+
+            <ul class="expense-list" id="expense-list" aria-live="polite">
+                <!-- Los gastos se inyectan dinámicamente -->
+            </ul>
+
+            <div id="empty-state" class="empty-state hidden">
+                <p>No hay gastos registrados para este mes.</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
