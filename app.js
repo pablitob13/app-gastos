@@ -13,12 +13,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const STORAGE_KEY = 'monthly_expenses_app';
+    const DISMISSED_REMINDER_PREFIX = 'dismissed_reminder_';
 
     // Estado en memoria
     let expenses = [];
     let currentFilter = 'all';
 
     // Referencias DOM
+    const reminderBanner = document.getElementById('monthly-reminder-banner');
+    const btnDismissReminder = document.getElementById('btn-dismiss-reminder');
+
     const btnToggleForm = document.getElementById('btn-toggle-form');
     const formContentWrapper = document.getElementById('form-content-wrapper');
     const form = document.getElementById('expense-form');
@@ -40,7 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalPersonalEl = document.getElementById('total-personal');
 
     const pieChartSvg = document.getElementById('pie-chart-svg');
-    const fixedPercentEl = document.getElementById('fixed-percent');
+    const fixedPisoPercentEl = document.getElementById('fixed-piso-percent');
+    const fixedCocheraPercentEl = document.getElementById('fixed-cochera-percent');
+    const fixedOtrosPercentEl = document.getElementById('fixed-otros-percent');
     const leisurePercentEl = document.getElementById('leisure-percent');
     const barsPercentEl = document.getElementById('bars-percent');
     const treatsPercentEl = document.getElementById('treats-percent');
@@ -55,14 +61,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnImportJsonTrigger = document.getElementById('btn-import-json-trigger');
     const jsonFileInput = document.getElementById('json-file-input');
 
-    // Palabras clave para categorización automática
+    // Palabras clave para categorización automática general
     const FIXED_KEYWORDS = [
-        'alquiler', 'hipoteca', 'comunidad', 'luz', 'agua', 'gas', 'internet',
-        'fibra', 'telefono', 'móvil', 'movil', 'seguro', 'coche', 'moto',
-        'gimnasio', 'cuota', 'impuesto', 'ibi', 'prestamo', 'préstamo', 'matricula',
-        'colegio', 'guarderia', 'tarjeta'
+        'alquiler', 'hipoteca', 'comunidad', 'piso', 'casa', 'luz', 'agua', 'gas',
+        'internet', 'fibra', 'telefono', 'móvil', 'movil', 'cochera', 'garaje',
+        'parking', 'plaza', 'seguro', 'coche', 'moto', 'gimnasio', 'cuota',
+        'impuesto', 'ibi', 'prestamo', 'préstamo', 'matricula', 'colegio',
+        'guarderia', 'tarjeta'
     ];
 
+    // Subcategorías de Gastos Fijos
+    const FIXED_PISO_KEYWORDS = [
+        'alquiler', 'piso', 'hipoteca', 'comunidad', 'casa', 'luz', 'agua', 'gas',
+        'internet', 'fibra'
+    ];
+
+    const FIXED_COCHERA_KEYWORDS = [
+        'cochera', 'garaje', 'parking', 'plaza'
+    ];
+
+    // Subcategorías de Gastos Personales
     const LEISURE_KEYWORDS = [
         'cine', 'teatro', 'concierto', 'partido', 'streaming', 'netflix', 'spotify',
         'entradas', 'viaje', 'hotel', 'escapada', 'vuelo', 'tren', 'billete',
@@ -93,8 +111,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
-    monthFilterInput.value = `${currentYear}-${currentMonth}`;
+    const currentMonthKey = `${currentYear}-${currentMonth}`;
+    monthFilterInput.value = currentMonthKey;
     resetDateField();
+
+    // Comprobar y mostrar recordatorio de inicio de mes (días 1 al 5)
+    function checkMonthlyReminder() {
+        const dayOfMonth = today.getDate();
+        const isStartOfMonth = dayOfMonth >= 1 && dayOfMonth <= 5;
+        const dismissalKey = `${DISMISSED_REMINDER_PREFIX}${currentMonthKey}`;
+        const isDismissed = localStorage.getItem(dismissalKey) === 'true';
+
+        if (isStartOfMonth && !isDismissed) {
+            reminderBanner.classList.remove('hidden');
+        } else {
+            reminderBanner.classList.add('hidden');
+        }
+    }
+
+    // Descartar aviso para el resto del mes actual
+    btnDismissReminder.addEventListener('click', () => {
+        const dismissalKey = `${DISMISSED_REMINDER_PREFIX}${currentMonthKey}`;
+        localStorage.setItem(dismissalKey, 'true');
+        reminderBanner.classList.add('hidden');
+    });
 
     // Toggle para el botón principal "Añadir Nuevo Gasto"
     btnToggleForm.addEventListener('click', () => {
@@ -113,12 +153,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return isFixed ? 'fijo' : 'personal';
     }
 
-    // Clasificación interna para el gráfico (Fijo, Ocio, Bares, Caprichos)
+    // Clasificación interna para el gráfico (Fijo: Piso, Cochera, Otros; Personal: Ocio, Bares, Caprichos)
     function classifySubcategory(expense) {
-        if (expense.type === 'fijo') {
-            return 'fijo';
-        }
         const text = (expense.concept || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        if (expense.type === 'fijo') {
+            if (FIXED_PISO_KEYWORDS.some(kw => text.includes(kw))) {
+                return 'fijo_piso';
+            }
+            if (FIXED_COCHERA_KEYWORDS.some(kw => text.includes(kw))) {
+                return 'fijo_cochera';
+            }
+            return 'fijo_otros';
+        }
+
+        // Gastos personales
         if (LEISURE_KEYWORDS.some(kw => text.includes(kw))) {
             return 'ocio';
         }
@@ -137,7 +186,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const sanitized = trimmed.replace(/€/g, '').replace(/\$/g, '');
 
         // Buscar coincidencia de importe en cualquier parte del texto
-        // Acepta formato 12.50 o 12,50 o enteros
         const amountRegex = /(\d+(?:[.,]\d{1,2})?)/;
         const match = sanitized.match(amountRegex);
 
@@ -150,7 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // El concepto es todo el texto restante eliminando la parte numérica encontrada
         let conceptText = sanitized.replace(rawAmount, '').replace(/\s+/g, ' ').trim();
-        // Limpiar signos sobrantes como guiones o dos puntos
         conceptText = conceptText.replace(/^[-: ]+|[-: ]+$/g, '');
 
         if (!conceptText) {
@@ -249,7 +296,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     } else {
-        // Si el navegador no soporta Web Speech API, ocultar el botón limpiamente
         btnSpeech.style.display = 'none';
     }
 
@@ -295,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return expenses.filter(item => item.date && item.date.startsWith(selectedMonth));
     }
 
-    // Actualizar el gráfico de tarta SVG con 4 categorías (Fijos, Ocio, Bares, Caprichos)
+    // Actualizar el gráfico de tarta SVG con 6 categorías
     function updatePieChart(totals, grandTotal) {
         const radius = 60;
         const circumference = 2 * Math.PI * radius; // ~376.99
@@ -315,7 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
             baseCircle.setAttribute('stroke-width', strokeWidth);
             pieChartSvg.appendChild(baseCircle);
 
-            fixedPercentEl.textContent = '0%';
+            fixedPisoPercentEl.textContent = '0%';
+            fixedCocheraPercentEl.textContent = '0%';
+            fixedOtrosPercentEl.textContent = '0%';
             leisurePercentEl.textContent = '0%';
             barsPercentEl.textContent = '0%';
             treatsPercentEl.textContent = '0%';
@@ -327,23 +375,32 @@ document.addEventListener('DOMContentLoaded', () => {
         chartEmptyMessage.classList.add('hidden');
 
         // Porcentajes
-        const fixedPct = Math.round((totals.fijo / grandTotal) * 100);
+        const pisoPct = Math.round((totals.fijo_piso / grandTotal) * 100);
+        const cocheraPct = Math.round((totals.fijo_cochera / grandTotal) * 100);
+        const otrosPct = Math.round((totals.fijo_otros / grandTotal) * 100);
         const leisurePct = Math.round((totals.ocio / grandTotal) * 100);
         const barsPct = Math.round((totals.bares / grandTotal) * 100);
         const treatsPct = Math.round((totals.caprichos / grandTotal) * 100);
 
-        fixedPercentEl.textContent = `${fixedPct}%`;
+        fixedPisoPercentEl.textContent = `${pisoPct}%`;
+        fixedCocheraPercentEl.textContent = `${cocheraPct}%`;
+        fixedOtrosPercentEl.textContent = `${otrosPct}%`;
         leisurePercentEl.textContent = `${leisurePct}%`;
         barsPercentEl.textContent = `${barsPct}%`;
         treatsPercentEl.textContent = `${treatsPct}%`;
-        chartCenterText.textContent = `${fixedPct}% F`;
 
-        // Segmentos en orden de dibujo
+        const totalFixedSum = totals.fijo_piso + totals.fijo_cochera + totals.fijo_otros;
+        const totalFixedPct = Math.round((totalFixedSum / grandTotal) * 100);
+        chartCenterText.textContent = `${totalFixedPct}% F`;
+
+        // Segmentos en orden visual armónico
         const segments = [
-            { key: 'fijo', amount: totals.fijo, color: '#818cf8' },      // Indigo
-            { key: 'ocio', amount: totals.ocio, color: '#38bdf8' },      // Celeste
-            { key: 'bares', amount: totals.bares, color: '#f59e0b' },    // Ámbar
-            { key: 'caprichos', amount: totals.caprichos, color: '#34d399' } // Verde esmeralda
+            { key: 'fijo_piso', amount: totals.fijo_piso, color: '#6366f1' },       // Índigo
+            { key: 'fijo_cochera', amount: totals.fijo_cochera, color: '#8b5cf6' }, // Violeta
+            { key: 'fijo_otros', amount: totals.fijo_otros, color: '#94a3b8' },     // Pizarra suave
+            { key: 'ocio', amount: totals.ocio, color: '#38bdf8' },                 // Celeste
+            { key: 'bares', amount: totals.bares, color: '#f59e0b' },               // Ámbar
+            { key: 'caprichos', amount: totals.caprichos, color: '#34d399' }        // Verde esmeralda
         ];
 
         let accumulatedOffset = 0;
@@ -376,7 +433,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalPersonal = 0;
 
         const breakdown = {
-            fijo: 0,
+            fijo_piso: 0,
+            fijo_cochera: 0,
+            fijo_otros: 0,
             ocio: 0,
             bares: 0,
             caprichos: 0
@@ -388,10 +447,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (item.type === 'fijo') {
                 totalFixed += amount;
-                breakdown.fijo += amount;
             } else {
                 totalPersonal += amount;
-                const subcategory = classifySubcategory(item);
+            }
+
+            const subcategory = classifySubcategory(item);
+            if (breakdown[subcategory] !== undefined) {
                 breakdown[subcategory] += amount;
             }
         });
@@ -430,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.className = 'expense-item';
 
-                // Se mantiene visualmente limpio solo como "Fijo" o "Personal"
+                // Se mantiene la lista limpia mostrando solo Fijo o Personal
                 const typeLabel = expense.type === 'fijo' ? 'Fijo' : 'Personal';
                 const badgeClass = expense.type === 'fijo' ? 'badge-fijo' : 'badge-personal';
 
@@ -574,7 +635,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // Normalizar y fusionar sin duplicar ID existentes
                 const existingIds = new Set(expenses.map(e => e.id));
                 let addedCount = 0;
 
@@ -682,6 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Inicio
+    checkMonthlyReminder();
     loadExpenses();
     renderList();
 });

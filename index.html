@@ -29,6 +29,23 @@
 </head>
 <body>
     <div class="app-container">
+        <!-- Banner de Recordatorio de Inicio de Mes (Días 1-5) -->
+        <aside id="monthly-reminder-banner" class="reminder-banner hidden" role="alert" aria-live="polite">
+            <div class="reminder-content">
+                <span class="reminder-icon" aria-hidden="true">🔔</span>
+                <div class="reminder-text">
+                    <strong>Recordatorio de inicio de mes:</strong>
+                    <span>Revisar pagos de Piso y Cochera</span>
+                </div>
+            </div>
+            <button type="button" class="btn-dismiss-reminder" id="btn-dismiss-reminder" aria-label="Descartar recordatorio este mes" title="Descartar recordatorio">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </aside>
+
         <!-- Cabecera y Navegación de Meses -->
         <header class="app-header">
             <div class="header-brand">
@@ -97,7 +114,7 @@
                 <form id="expense-form" class="expense-form" autocomplete="off">
                     <div class="form-group">
                         <label for="expense-concept">Concepto</label>
-                        <input type="text" id="expense-concept" placeholder="Ej. Alquiler, Supermercado..." required maxlength="60">
+                        <input type="text" id="expense-concept" placeholder="Ej. Alquiler, Cochera, Supermercado..." required maxlength="60">
                     </div>
 
                     <div class="form-row">
@@ -158,7 +175,7 @@
             </div>
         </section>
 
-        <!-- 3. Gráfico de tarta comparativo con desglose interno de personales -->
+        <!-- 3. Gráfico de tarta comparativo con desglose interno completo -->
         <section class="chart-section" aria-label="Distribución de gastos">
             <h2 class="section-title">Distribución del Mes</h2>
             <div class="chart-container">
@@ -172,10 +189,24 @@
                 </div>
                 <div class="chart-legend" id="chart-legend">
                     <div class="legend-item">
-                        <span class="legend-color fixed"></span>
+                        <span class="legend-color fixed-piso"></span>
                         <div class="legend-info">
-                            <span class="legend-name">Gastos Fijos</span>
-                            <span class="legend-percent" id="fixed-percent">0%</span>
+                            <span class="legend-name">Fijo: Piso</span>
+                            <span class="legend-percent" id="fixed-piso-percent">0%</span>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color fixed-cochera"></span>
+                        <div class="legend-info">
+                            <span class="legend-name">Fijo: Cochera</span>
+                            <span class="legend-percent" id="fixed-cochera-percent">0%</span>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color fixed-otros"></span>
+                        <div class="legend-info">
+                            <span class="legend-name">Otros Fijos</span>
+                            <span class="legend-percent" id="fixed-otros-percent">0%</span>
                         </div>
                     </div>
                     <div class="legend-item">
