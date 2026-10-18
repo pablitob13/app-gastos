@@ -20,11 +20,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Referencias DOM
     const btnToggleForm = document.getElementById('btn-toggle-form');
+    const formContentWrapper = document.getElementById('form-content-wrapper');
     const form = document.getElementById('expense-form');
     const conceptInput = document.getElementById('expense-concept');
     const amountInput = document.getElementById('expense-amount');
     const dateInput = document.getElementById('expense-date');
     const typeSelect = document.getElementById('expense-type');
+    const quickEntryInput = document.getElementById('quick-entry-input');
+    const btnQuickLoad = document.getElementById('btn-quick-load');
+    const btnSpeech = document.getElementById('btn-speech');
+
     const monthFilterInput = document.getElementById('month-filter');
     const btnPrevMonth = document.getElementById('btn-prev-month');
     const btnNextMonth = document.getElementById('btn-next-month');
@@ -36,7 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const pieChartSvg = document.getElementById('pie-chart-svg');
     const fixedPercentEl = document.getElementById('fixed-percent');
-    const personalPercentEl = document.getElementById('personal-percent');
+    const leisurePercentEl = document.getElementById('leisure-percent');
+    const barsPercentEl = document.getElementById('bars-percent');
+    const treatsPercentEl = document.getElementById('treats-percent');
     const chartCenterText = document.querySelector('.chart-center-text');
     const chartEmptyMessage = document.getElementById('chart-empty-message');
 
@@ -44,30 +51,214 @@ document.addEventListener('DOMContentLoaded', () => {
     const emptyStateEl = document.getElementById('empty-state');
     const filterPills = document.querySelectorAll('.filter-pills .pill');
 
-    // Inicializar fechas por defecto (hoy y mes actual)
+    const btnExportJson = document.getElementById('btn-export-json');
+    const btnImportJsonTrigger = document.getElementById('btn-import-json-trigger');
+    const jsonFileInput = document.getElementById('json-file-input');
+
+    // Palabras clave para categorización automática
+    const FIXED_KEYWORDS = [
+        'alquiler', 'hipoteca', 'comunidad', 'luz', 'agua', 'gas', 'internet',
+        'fibra', 'telefono', 'móvil', 'movil', 'seguro', 'coche', 'moto',
+        'gimnasio', 'cuota', 'impuesto', 'ibi', 'prestamo', 'préstamo', 'matricula',
+        'colegio', 'guarderia', 'tarjeta'
+    ];
+
+    const LEISURE_KEYWORDS = [
+        'cine', 'teatro', 'concierto', 'partido', 'streaming', 'netflix', 'spotify',
+        'entradas', 'viaje', 'hotel', 'escapada', 'vuelo', 'tren', 'billete',
+        'museo', 'show', 'disney', 'hbo', 'prime', 'evento'
+    ];
+
+    const BARS_KEYWORDS = [
+        'cerveza', 'cervezas', 'cañas', 'caña', 'restaurante', 'cena', 'comida',
+        'bar', 'tapas', 'copas', 'copa', 'cafe', 'café', 'desayuno', 'merienda',
+        'almuerzo', 'pizzeria', 'burger', 'hamburguesa', 'chiringuito', 'vermut'
+    ];
+
+    // Helper: Obtener fecha actual en formato YYYY-MM-DD
+    function getTodayDateString() {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    // Inicializar campo fecha con el día actual
+    function resetDateField() {
+        dateInput.value = getTodayDateString();
+    }
+
+    // Inicializar mes por defecto
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
-    const currentDay = String(today.getDate()).padStart(2, '0');
-
-    dateInput.value = `${currentYear}-${currentMonth}-${currentDay}`;
     monthFilterInput.value = `${currentYear}-${currentMonth}`;
+    resetDateField();
 
     // Toggle para el botón principal "Añadir Nuevo Gasto"
     btnToggleForm.addEventListener('click', () => {
-        const isCollapsed = form.classList.toggle('collapsed');
+        const isCollapsed = formContentWrapper.classList.toggle('collapsed');
         btnToggleForm.classList.toggle('collapsed', isCollapsed);
         btnToggleForm.setAttribute('aria-expanded', !isCollapsed);
         if (!isCollapsed) {
-            conceptInput.focus();
+            quickEntryInput.focus();
         }
     });
+
+    // Detectar tipo de gasto a partir del texto de concepto
+    function detectExpenseType(text) {
+        const normalized = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const isFixed = FIXED_KEYWORDS.some(kw => normalized.includes(kw));
+        return isFixed ? 'fijo' : 'personal';
+    }
+
+    // Clasificación interna para el gráfico (Fijo, Ocio, Bares, Caprichos)
+    function classifySubcategory(expense) {
+        if (expense.type === 'fijo') {
+            return 'fijo';
+        }
+        const text = (expense.concept || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (LEISURE_KEYWORDS.some(kw => text.includes(kw))) {
+            return 'ocio';
+        }
+        if (BARS_KEYWORDS.some(kw => text.includes(kw))) {
+            return 'bares';
+        }
+        return 'caprichos';
+    }
+
+    // Parseador de Entrada Rápida (Soporta: "12.50 cena", "cena 12.50", "alquiler 600€", "15,80 cafe")
+    function parseQuickEntry(input) {
+        const trimmed = input.trim();
+        if (!trimmed) return null;
+
+        // Limpiar símbolos de moneda opcionales
+        const sanitized = trimmed.replace(/€/g, '').replace(/\$/g, '');
+
+        // Buscar coincidencia de importe en cualquier parte del texto
+        // Acepta formato 12.50 o 12,50 o enteros
+        const amountRegex = /(\d+(?:[.,]\d{1,2})?)/;
+        const match = sanitized.match(amountRegex);
+
+        if (!match) return null;
+
+        const rawAmount = match[0];
+        const numericAmount = parseFloat(rawAmount.replace(',', '.'));
+
+        if (isNaN(numericAmount) || numericAmount <= 0) return null;
+
+        // El concepto es todo el texto restante eliminando la parte numérica encontrada
+        let conceptText = sanitized.replace(rawAmount, '').replace(/\s+/g, ' ').trim();
+        // Limpiar signos sobrantes como guiones o dos puntos
+        conceptText = conceptText.replace(/^[-: ]+|[-: ]+$/g, '');
+
+        if (!conceptText) {
+            conceptText = 'Gasto variado';
+        }
+
+        // Capitalizar primera letra del concepto
+        conceptText = conceptText.charAt(0).toUpperCase() + conceptText.slice(1);
+
+        const autoType = detectExpenseType(conceptText);
+
+        return {
+            amount: numericAmount,
+            concept: conceptText,
+            type: autoType
+        };
+    }
+
+    // Cargar datos procesados en el formulario
+    function applyQuickEntry() {
+        const val = quickEntryInput.value;
+        const parsed = parseQuickEntry(val);
+        if (!parsed) {
+            alert('Introduce al menos un importe y concepto. Ej: "12.50 cena" o "alquiler 600"');
+            return;
+        }
+
+        conceptInput.value = parsed.concept;
+        amountInput.value = parsed.amount.toFixed(2);
+        typeSelect.value = parsed.type;
+        resetDateField();
+
+        // Si el formulario estaba colapsado, desplegarlo
+        if (formContentWrapper.classList.contains('collapsed')) {
+            formContentWrapper.classList.remove('collapsed');
+            btnToggleForm.classList.remove('collapsed');
+            btnToggleForm.setAttribute('aria-expanded', 'true');
+        }
+
+        amountInput.focus();
+        quickEntryInput.value = '';
+    }
+
+    btnQuickLoad.addEventListener('click', applyQuickEntry);
+    quickEntryInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            applyQuickEntry();
+        }
+    });
+
+    // Soporte de Reconocimiento de Voz (Web Speech API)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        let isListening = false;
+
+        recognition.onstart = () => {
+            isListening = true;
+            btnSpeech.classList.add('recording');
+            quickEntryInput.placeholder = 'Escuchando... Di ej. "12 euros comida"';
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            quickEntryInput.value = transcript;
+            applyQuickEntry();
+        };
+
+        recognition.onerror = (event) => {
+            console.warn('Error en reconocimiento de voz:', event.error);
+            isListening = false;
+            btnSpeech.classList.remove('recording');
+            quickEntryInput.placeholder = 'Escribe o pulsa el micro...';
+        };
+
+        recognition.onend = () => {
+            isListening = false;
+            btnSpeech.classList.remove('recording');
+            quickEntryInput.placeholder = 'Escribe o pulsa el micro...';
+        };
+
+        btnSpeech.addEventListener('click', () => {
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('Error al iniciar speech recognition:', e);
+                }
+            }
+        });
+    } else {
+        // Si el navegador no soporta Web Speech API, ocultar el botón limpiamente
+        btnSpeech.style.display = 'none';
+    }
 
     // Cargar datos de LocalStorage
     function loadExpenses() {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
             expenses = stored ? JSON.parse(stored) : [];
+            if (!Array.isArray(expenses)) expenses = [];
         } catch (e) {
             console.error('Error al parsear LocalStorage:', e);
             expenses = [];
@@ -91,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Formatear fecha para el listado (dd/mm/yyyy)
     function formatDateDisplay(isoDateString) {
+        if (!isoDateString || !isoDateString.includes('-')) return isoDateString;
         const [year, month, day] = isoDateString.split('-');
         return `${day}/${month}/${year}`;
     }
@@ -100,11 +292,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedMonth = monthFilterInput.value;
         if (!selectedMonth) return expenses;
 
-        return expenses.filter(item => item.date.startsWith(selectedMonth));
+        return expenses.filter(item => item.date && item.date.startsWith(selectedMonth));
     }
 
-    // Actualizar el gráfico de tarta SVG con porcentajes
-    function updatePieChart(totalFixed, totalPersonal, total) {
+    // Actualizar el gráfico de tarta SVG con 4 categorías (Fijos, Ocio, Bares, Caprichos)
+    function updatePieChart(totals, grandTotal) {
         const radius = 60;
         const circumference = 2 * Math.PI * radius; // ~376.99
         const cx = 80;
@@ -113,8 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pieChartSvg.innerHTML = '';
 
-        if (total === 0) {
-            // Círculo neutro de fondo si no hay gastos
+        if (grandTotal === 0) {
             const baseCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             baseCircle.setAttribute('cx', cx);
             baseCircle.setAttribute('cy', cy);
@@ -125,7 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
             pieChartSvg.appendChild(baseCircle);
 
             fixedPercentEl.textContent = '0%';
-            personalPercentEl.textContent = '0%';
+            leisurePercentEl.textContent = '0%';
+            barsPercentEl.textContent = '0%';
+            treatsPercentEl.textContent = '0%';
             chartCenterText.textContent = '0%';
             chartEmptyMessage.classList.remove('hidden');
             return;
@@ -133,46 +326,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chartEmptyMessage.classList.add('hidden');
 
-        const fixedRatio = totalFixed / total;
-        const personalRatio = totalPersonal / total;
+        // Porcentajes
+        const fixedPct = Math.round((totals.fijo / grandTotal) * 100);
+        const leisurePct = Math.round((totals.ocio / grandTotal) * 100);
+        const barsPct = Math.round((totals.bares / grandTotal) * 100);
+        const treatsPct = Math.round((totals.caprichos / grandTotal) * 100);
 
-        const fixedPercent = Math.round(fixedRatio * 100);
-        const personalPercent = Math.round(personalRatio * 100);
+        fixedPercentEl.textContent = `${fixedPct}%`;
+        leisurePercentEl.textContent = `${leisurePct}%`;
+        barsPercentEl.textContent = `${barsPct}%`;
+        treatsPercentEl.textContent = `${treatsPct}%`;
+        chartCenterText.textContent = `${fixedPct}% F`;
 
-        fixedPercentEl.textContent = `${fixedPercent}%`;
-        personalPercentEl.textContent = `${personalPercent}%`;
-        chartCenterText.textContent = `${fixedPercent}% F`;
+        // Segmentos en orden de dibujo
+        const segments = [
+            { key: 'fijo', amount: totals.fijo, color: '#818cf8' },      // Indigo
+            { key: 'ocio', amount: totals.ocio, color: '#38bdf8' },      // Celeste
+            { key: 'bares', amount: totals.bares, color: '#f59e0b' },    // Ámbar
+            { key: 'caprichos', amount: totals.caprichos, color: '#34d399' } // Verde esmeralda
+        ];
 
-        const fixedDash = fixedRatio * circumference;
-        const personalDash = personalRatio * circumference;
+        let accumulatedOffset = 0;
 
-        // Porción de Gastos Fijos (Púrpura/Indigo)
-        if (totalFixed > 0) {
-            const fixedCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            fixedCircle.setAttribute('cx', cx);
-            fixedCircle.setAttribute('cy', cy);
-            fixedCircle.setAttribute('r', radius);
-            fixedCircle.setAttribute('fill', 'none');
-            fixedCircle.setAttribute('stroke', '#818cf8');
-            fixedCircle.setAttribute('stroke-width', strokeWidth);
-            fixedCircle.setAttribute('stroke-dasharray', `${fixedDash} ${circumference}`);
-            fixedCircle.setAttribute('stroke-dashoffset', '0');
-            pieChartSvg.appendChild(fixedCircle);
-        }
+        segments.forEach(segment => {
+            if (segment.amount > 0) {
+                const ratio = segment.amount / grandTotal;
+                const dashLength = ratio * circumference;
 
-        // Porción de Gastos Personales (Verde esmeralda)
-        if (totalPersonal > 0) {
-            const personalCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            personalCircle.setAttribute('cx', cx);
-            personalCircle.setAttribute('cy', cy);
-            personalCircle.setAttribute('r', radius);
-            personalCircle.setAttribute('fill', 'none');
-            personalCircle.setAttribute('stroke', '#34d399');
-            personalCircle.setAttribute('stroke-width', strokeWidth);
-            personalCircle.setAttribute('stroke-dasharray', `${personalDash} ${circumference}`);
-            personalCircle.setAttribute('stroke-dashoffset', `-${fixedDash}`);
-            pieChartSvg.appendChild(personalCircle);
-        }
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', cx);
+                circle.setAttribute('cy', cy);
+                circle.setAttribute('r', radius);
+                circle.setAttribute('fill', 'none');
+                circle.setAttribute('stroke', segment.color);
+                circle.setAttribute('stroke-width', strokeWidth);
+                circle.setAttribute('stroke-dasharray', `${dashLength} ${circumference}`);
+                circle.setAttribute('stroke-dashoffset', `${-accumulatedOffset}`);
+                pieChartSvg.appendChild(circle);
+
+                accumulatedOffset += dashLength;
+            }
+        });
     }
 
     // Actualizar tarjetas de totales y gráfico
@@ -181,13 +375,24 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalFixed = 0;
         let totalPersonal = 0;
 
+        const breakdown = {
+            fijo: 0,
+            ocio: 0,
+            bares: 0,
+            caprichos: 0
+        };
+
         monthExpenses.forEach(item => {
             const amount = parseFloat(item.amount) || 0;
             total += amount;
+
             if (item.type === 'fijo') {
                 totalFixed += amount;
-            } else if (item.type === 'personal') {
+                breakdown.fijo += amount;
+            } else {
                 totalPersonal += amount;
+                const subcategory = classifySubcategory(item);
+                breakdown[subcategory] += amount;
             }
         });
 
@@ -195,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         totalFixedEl.textContent = formatCurrency(totalFixed);
         totalPersonalEl.textContent = formatCurrency(totalPersonal);
 
-        updatePieChart(totalFixed, totalPersonal, total);
+        updatePieChart(breakdown, total);
     }
 
     // Renderizar la lista de gastos
@@ -203,18 +408,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const monthExpenses = getExpensesForSelectedMonth();
         updateSummary(monthExpenses);
 
-        // Filtrado por categoría
         let displayList = monthExpenses;
         if (currentFilter !== 'all') {
             displayList = displayList.filter(item => item.type === currentFilter);
         }
 
-        // Ordenar: más recientes primero
         displayList.sort((a, b) => {
             if (b.date !== a.date) {
                 return b.date.localeCompare(a.date);
             }
-            return b.id - a.id;
+            return (b.id || 0) - (a.id || 0);
         });
 
         expenseListEl.innerHTML = '';
@@ -227,6 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.className = 'expense-item';
 
+                // Se mantiene visualmente limpio solo como "Fijo" o "Personal"
                 const typeLabel = expense.type === 'fijo' ? 'Fijo' : 'Personal';
                 const badgeClass = expense.type === 'fijo' ? 'badge-fijo' : 'badge-personal';
 
@@ -265,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function changeMonth(offset) {
         const [yearStr, monthStr] = monthFilterInput.value.split('-');
         let year = parseInt(yearStr, 10);
-        let month = parseInt(monthStr, 10) - 1; // 0-index
+        let month = parseInt(monthStr, 10) - 1;
 
         const newDate = new Date(year, month + offset, 1);
         const nextYear = newDate.getFullYear();
@@ -278,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPrevMonth.addEventListener('click', () => changeMonth(-1));
     btnNextMonth.addEventListener('click', () => changeMonth(1));
 
-    // Exportar a Excel (CSV con formato y codificación UTF-8 BOM para Excel)
+    // Exportar a Excel (CSV con UTF-8 BOM)
     function exportToExcel() {
         const monthExpenses = getExpensesForSelectedMonth();
         const dataToExport = monthExpenses.length > 0 ? monthExpenses : expenses;
@@ -288,24 +492,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Encabezados en español
         const headers = ['ID', 'Fecha', 'Concepto', 'Tipo de Gasto', 'Importe (EUR)'];
         const rows = dataToExport.map(item => [
             item.id,
             item.date,
-            `"${item.concept.replace(/"/g, '""')}"`,
+            `"${(item.concept || '').replace(/"/g, '""')}"`,
             item.type === 'fijo' ? 'Fijo' : 'Personal',
-            item.amount.toString().replace('.', ',') // Formato de coma decimal para Excel en español
+            item.amount.toString().replace('.', ',')
         ]);
 
-        // Separador ';' para compatibilidad nativa con Excel en español
         const csvContent = [headers.join(';'), ...rows.map(row => row.join(';'))].join('\r\n');
-
-        // \uFEFF añade el Byte Order Mark (BOM) para que Excel reconozca tildes y caracteres especiales
         const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        
+
         const currentSelectedMonth = monthFilterInput.value || 'gastos';
         link.setAttribute('href', url);
         link.setAttribute('download', `gastos_${currentSelectedMonth}.csv`);
@@ -316,6 +516,98 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnExportExcel.addEventListener('click', exportToExcel);
+
+    // COPIA DE SEGURIDAD EN JSON: Exportar
+    btnExportJson.addEventListener('click', () => {
+        if (expenses.length === 0) {
+            alert('No hay registros guardados para exportar en el backup.');
+            return;
+        }
+
+        const backupData = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            expenses: expenses
+        };
+
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const todayStr = getTodayDateString();
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', `backup_gastos_${todayStr}.json`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    });
+
+    // COPIA DE SEGURIDAD EN JSON: Trigger selector de archivo
+    btnImportJsonTrigger.addEventListener('click', () => {
+        jsonFileInput.value = '';
+        jsonFileInput.click();
+    });
+
+    // COPIA DE SEGURIDAD EN JSON: Importar y fusionar datos
+    jsonFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const parsed = JSON.parse(event.target.result);
+                let importedList = [];
+
+                if (Array.isArray(parsed)) {
+                    importedList = parsed;
+                } else if (parsed && Array.isArray(parsed.expenses)) {
+                    importedList = parsed.expenses;
+                } else {
+                    throw new Error('Formato JSON no válido.');
+                }
+
+                if (importedList.length === 0) {
+                    alert('El archivo no contiene registros de gastos.');
+                    return;
+                }
+
+                // Normalizar y fusionar sin duplicar ID existentes
+                const existingIds = new Set(expenses.map(e => e.id));
+                let addedCount = 0;
+
+                importedList.forEach(item => {
+                    if (item && item.concept && !isNaN(item.amount) && item.date) {
+                        let id = item.id;
+                        if (!id || existingIds.has(id)) {
+                            id = Date.now() + Math.floor(Math.random() * 10000);
+                        }
+                        existingIds.add(id);
+
+                        expenses.push({
+                            id: id,
+                            concept: String(item.concept).trim(),
+                            amount: Math.abs(parseFloat(item.amount)),
+                            date: item.date,
+                            type: item.type === 'fijo' ? 'fijo' : 'personal'
+                        });
+                        addedCount++;
+                    }
+                });
+
+                saveExpenses();
+                renderList();
+                alert(`Backup importado con éxito: se han procesado ${addedCount} gastos.`);
+            } catch (err) {
+                console.error('Error al importar JSON:', err);
+                alert('No se pudo procesar el archivo JSON. Verifica que sea un respaldo válido.');
+            }
+        };
+
+        reader.readAsText(file);
+    });
 
     // Manejar envío de formulario
     form.addEventListener('submit', (e) => {
@@ -347,8 +639,11 @@ document.addEventListener('DOMContentLoaded', () => {
             monthFilterInput.value = expenseMonth;
         }
 
+        // Restablecer formulario y volver a asignar la fecha de hoy automáticamente
         conceptInput.value = '';
         amountInput.value = '';
+        quickEntryInput.value = '';
+        resetDateField();
         conceptInput.focus();
 
         renderList();
@@ -375,9 +670,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Cambio directo en el input de mes
+    // Cambio directo en el selector de mes
     monthFilterInput.addEventListener('change', () => {
         renderList();
+    });
+
+    // Auto-clasificación en el formulario mientras se escribe en el concepto
+    conceptInput.addEventListener('input', () => {
+        const detected = detectExpenseType(conceptInput.value);
+        typeSelect.value = detected;
     });
 
     // Inicio

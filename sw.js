@@ -1,14 +1,15 @@
-const CACHE_NAME = 'mis-gastos-v1';
+const CACHE_NAME = 'mis-gastos-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
-// Instalación: cachear archivos locales esenciales
+// Instalación: Cachear de antemano todos los recursos locales y Chart.js CDN
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -17,7 +18,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activación: limpiar caches antiguas si existen
+// Activación: Borrar caches previas obsoletas
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -32,9 +33,8 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Intercepción de peticiones: Cache first con network fallback
+// Estrategia Cache-First para garantizar funcionamiento completo en iOS/Modo Avión
 self.addEventListener('fetch', (event) => {
-  // Ignorar peticiones que no sean GET
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
@@ -43,12 +43,13 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
 
+      // Si no está en caché, buscar en red y almacenar si es válido
       return fetch(event.request).then((networkResponse) => {
-        // Cachear las fuentes externas o recursos estáticos recibidos
         if (
           networkResponse &&
-          networkResponse.status === 200 &&
+          (networkResponse.status === 200 || networkResponse.type === 'opaque') &&
           (event.request.url.startsWith(self.location.origin) ||
+           event.request.url.includes('cdn.jsdelivr.net') ||
            event.request.url.includes('fonts.googleapis.com') ||
            event.request.url.includes('fonts.gstatic.com'))
         ) {
@@ -59,7 +60,7 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Si no hay red y se pide navegación HTML, devolver index.html de la caché
+        // En caso de caída de conexión durante navegación HTML, devolver index.html
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html');
         }
