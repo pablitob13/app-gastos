@@ -12,10 +12,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateInput = document.getElementById('expense-date');
     const typeSelect = document.getElementById('expense-type');
     const monthFilterInput = document.getElementById('month-filter');
+    const btnPrevMonth = document.getElementById('btn-prev-month');
+    const btnNextMonth = document.getElementById('btn-next-month');
+    const btnExportExcel = document.getElementById('btn-export-excel');
 
     const totalAmountEl = document.getElementById('total-amount');
     const totalFixedEl = document.getElementById('total-fixed');
     const totalPersonalEl = document.getElementById('total-personal');
+
+    const pieChartSvg = document.getElementById('pie-chart-svg');
+    const fixedPercentEl = document.getElementById('fixed-percent');
+    const personalPercentEl = document.getElementById('personal-percent');
+    const chartCenterText = document.querySelector('.chart-center-text');
+    const chartEmptyMessage = document.getElementById('chart-empty-message');
 
     const expenseListEl = document.getElementById('expense-list');
     const emptyStateEl = document.getElementById('empty-state');
@@ -62,15 +71,87 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${day}/${month}/${year}`;
     }
 
-    // Filtrar por el mes seleccionado en la cabecera
+    // Filtrar por el mes seleccionado en la cabecera (YYYY-MM)
     function getExpensesForSelectedMonth() {
-        const selectedMonth = monthFilterInput.value; // YYYY-MM
+        const selectedMonth = monthFilterInput.value;
         if (!selectedMonth) return expenses;
 
         return expenses.filter(item => item.date.startsWith(selectedMonth));
     }
 
-    // Actualizar tarjetas de totales
+    // Actualizar el gráfico de tarta SVG con porcentajes
+    function updatePieChart(totalFixed, totalPersonal, total) {
+        const radius = 60;
+        const circumference = 2 * Math.PI * radius; // ~376.99
+        const cx = 80;
+        const cy = 80;
+        const strokeWidth = 24;
+
+        pieChartSvg.innerHTML = '';
+
+        if (total === 0) {
+            // Círculo neutro de fondo si no hay gastos
+            const baseCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            baseCircle.setAttribute('cx', cx);
+            baseCircle.setAttribute('cy', cy);
+            baseCircle.setAttribute('r', radius);
+            baseCircle.setAttribute('fill', 'none');
+            baseCircle.setAttribute('stroke', '#273552');
+            baseCircle.setAttribute('stroke-width', strokeWidth);
+            pieChartSvg.appendChild(baseCircle);
+
+            fixedPercentEl.textContent = '0%';
+            personalPercentEl.textContent = '0%';
+            chartCenterText.textContent = '0%';
+            chartEmptyMessage.classList.remove('hidden');
+            return;
+        }
+
+        chartEmptyMessage.classList.add('hidden');
+
+        const fixedRatio = totalFixed / total;
+        const personalRatio = totalPersonal / total;
+
+        const fixedPercent = Math.round(fixedRatio * 100);
+        const personalPercent = Math.round(personalRatio * 100);
+
+        fixedPercentEl.textContent = `${fixedPercent}%`;
+        personalPercentEl.textContent = `${personalPercent}%`;
+        chartCenterText.textContent = `${fixedPercent}% F`;
+
+        const fixedDash = fixedRatio * circumference;
+        const personalDash = personalRatio * circumference;
+
+        // Porción de Gastos Fijos (Púrpura/Indigo)
+        if (totalFixed > 0) {
+            const fixedCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            fixedCircle.setAttribute('cx', cx);
+            fixedCircle.setAttribute('cy', cy);
+            fixedCircle.setAttribute('r', radius);
+            fixedCircle.setAttribute('fill', 'none');
+            fixedCircle.setAttribute('stroke', '#818cf8');
+            fixedCircle.setAttribute('stroke-width', strokeWidth);
+            fixedCircle.setAttribute('stroke-dasharray', `${fixedDash} ${circumference}`);
+            fixedCircle.setAttribute('stroke-dashoffset', '0');
+            pieChartSvg.appendChild(fixedCircle);
+        }
+
+        // Porción de Gastos Personales (Verde esmeralda)
+        if (totalPersonal > 0) {
+            const personalCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            personalCircle.setAttribute('cx', cx);
+            personalCircle.setAttribute('cy', cy);
+            personalCircle.setAttribute('r', radius);
+            personalCircle.setAttribute('fill', 'none');
+            personalCircle.setAttribute('stroke', '#34d399');
+            personalCircle.setAttribute('stroke-width', strokeWidth);
+            personalCircle.setAttribute('stroke-dasharray', `${personalDash} ${circumference}`);
+            personalCircle.setAttribute('stroke-dashoffset', `-${fixedDash}`);
+            pieChartSvg.appendChild(personalCircle);
+        }
+    }
+
+    // Actualizar tarjetas de totales y gráfico
     function updateSummary(monthExpenses) {
         let total = 0;
         let totalFixed = 0;
@@ -89,6 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
         totalAmountEl.textContent = formatCurrency(total);
         totalFixedEl.textContent = formatCurrency(totalFixed);
         totalPersonalEl.textContent = formatCurrency(totalPersonal);
+
+        updatePieChart(totalFixed, totalPersonal, total);
     }
 
     // Renderizar la lista de gastos
@@ -102,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             displayList = displayList.filter(item => item.type === currentFilter);
         }
 
-        // Ordenar: más recientes primero (por fecha y luego por id/creación)
+        // Ordenar: más recientes primero
         displayList.sort((a, b) => {
             if (b.date !== a.date) {
                 return b.date.localeCompare(a.date);
@@ -133,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="expense-right">
                         <span class="expense-amount">${formatCurrency(expense.amount)}</span>
-                        <button type="button" class="btn-delete" data-id="${expense.id}" aria-label="Eliminar gasto">
+                        <button type="button" class="btn-delete" data-id="${expense.id}" aria-label="Eliminar gasto" title="Eliminar gasto">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -153,6 +236,62 @@ document.addEventListener('DOMContentLoaded', () => {
         div.textContent = string;
         return div.innerHTML;
     }
+
+    // Navegar mes anterior / mes siguiente
+    function changeMonth(offset) {
+        const [yearStr, monthStr] = monthFilterInput.value.split('-');
+        let year = parseInt(yearStr, 10);
+        let month = parseInt(monthStr, 10) - 1; // 0-index
+
+        const newDate = new Date(year, month + offset, 1);
+        const nextYear = newDate.getFullYear();
+        const nextMonth = String(newDate.getMonth() + 1).padStart(2, '0');
+
+        monthFilterInput.value = `${nextYear}-${nextMonth}`;
+        renderList();
+    }
+
+    btnPrevMonth.addEventListener('click', () => changeMonth(-1));
+    btnNextMonth.addEventListener('click', () => changeMonth(1));
+
+    // Exportar a Excel (CSV con formato y codificación UTF-8 BOM para Excel)
+    function exportToExcel() {
+        const monthExpenses = getExpensesForSelectedMonth();
+        const dataToExport = monthExpenses.length > 0 ? monthExpenses : expenses;
+
+        if (dataToExport.length === 0) {
+            alert('No hay gastos registrados para exportar.');
+            return;
+        }
+
+        // Encabezados en español
+        const headers = ['ID', 'Fecha', 'Concepto', 'Tipo de Gasto', 'Importe (EUR)'];
+        const rows = dataToExport.map(item => [
+            item.id,
+            item.date,
+            `"${item.concept.replace(/"/g, '""')}"`,
+            item.type === 'fijo' ? 'Fijo' : 'Personal',
+            item.amount.toString().replace('.', ',') // Formato de coma decimal para Excel en español
+        ]);
+
+        // Separador ';' para compatibilidad nativa con Excel en español
+        const csvContent = [headers.join(';'), ...rows.map(row => row.join(';'))].join('\r\n');
+
+        // \uFEFF añade el Byte Order Mark (BOM) para que Excel reconozca tildes y caracteres especiales
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        
+        const currentSelectedMonth = monthFilterInput.value || 'gastos';
+        link.setAttribute('href', url);
+        link.setAttribute('download', `gastos_${currentSelectedMonth}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    btnExportExcel.addEventListener('click', exportToExcel);
 
     // Manejar envío de formulario
     form.addEventListener('submit', (e) => {
@@ -178,13 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
         expenses.push(newExpense);
         saveExpenses();
 
-        // Si la fecha añadida pertenece a otro mes, sincronizar el selector de mes
+        // Sincronizar el mes seleccionado si el nuevo gasto pertenece a otro mes
         const expenseMonth = date.substring(0, 7);
         if (monthFilterInput.value !== expenseMonth) {
             monthFilterInput.value = expenseMonth;
         }
 
-        // Limpiar formulario y mantener la fecha
         conceptInput.value = '';
         amountInput.value = '';
         conceptInput.focus();
@@ -192,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList();
     });
 
-    // Manejar eliminación de gastos (delegación de eventos)
+    // Manejar eliminación de gastos
     expenseListEl.addEventListener('click', (e) => {
         const deleteButton = e.target.closest('.btn-delete');
         if (!deleteButton) return;
@@ -203,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList();
     });
 
-    // Manejar cambios en filtro (Todos / Fijos / Personales)
+    // Filtros de categoría
     filterPills.forEach(pill => {
         pill.addEventListener('click', () => {
             filterPills.forEach(p => p.classList.remove('active'));
@@ -213,12 +351,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Cambiar mes seleccionado
+    // Cambio directo en el input de mes
     monthFilterInput.addEventListener('change', () => {
         renderList();
     });
 
-    // Inicialización
+    // Inicio
     loadExpenses();
     renderList();
 });
