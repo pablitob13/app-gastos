@@ -35,71 +35,22 @@
             </div>
         </header>
 
-        <!-- Resumen visual superior -->
-        <section class="summary-section" aria-label="Resumen de gastos">
-            <div class="summary-card total">
-                <div class="total-content">
-                    <span class="card-label">Total del Mes</span>
-                    <span class="card-amount" id="total-amount">0,00 €</span>
-                </div>
-                <div class="total-icon" aria-hidden="true">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                        <line x1="2" y1="10" x2="22" y2="10"></line>
-                    </svg>
-                </div>
-            </div>
-            <div class="summary-row">
-                <div class="summary-card fixed">
-                    <div class="card-indicator fixed-indicator"></div>
-                    <span class="card-label">Fijos</span>
-                    <span class="card-amount" id="total-fixed">0,00 €</span>
-                </div>
-                <div class="summary-card personal">
-                    <div class="card-indicator personal-indicator"></div>
-                    <span class="card-label">Personales</span>
-                    <span class="card-amount" id="total-personal">0,00 €</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- Gráfico de Tarta Fijos vs Personales -->
-        <section class="chart-section" aria-label="Distribución de gastos">
-            <h2 class="section-title">Distribución del Mes</h2>
-            <div class="chart-container">
-                <div class="pie-chart-wrapper">
-                    <svg id="pie-chart-svg" viewBox="0 0 160 160" class="pie-chart" aria-label="Gráfico de tarta de gastos">
-                        <!-- Círculos dinámicos generados por JS -->
-                    </svg>
-                    <div class="chart-center-label" id="chart-center-label">
-                        <span class="chart-center-text">100%</span>
-                    </div>
-                </div>
-                <div class="chart-legend" id="chart-legend">
-                    <div class="legend-item">
-                        <span class="legend-color fixed"></span>
-                        <div class="legend-info">
-                            <span class="legend-name">Fijos</span>
-                            <span class="legend-percent" id="fixed-percent">0%</span>
-                        </div>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-color personal"></span>
-                        <div class="legend-info">
-                            <span class="legend-name">Personales</span>
-                            <span class="legend-percent" id="personal-percent">0%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <p id="chart-empty-message" class="chart-empty-note hidden">Añade gastos en este mes para visualizar el gráfico.</p>
-        </section>
-
-        <!-- Formulario de nuevo gasto -->
+        <!-- 1. Botón y Formulario de nuevo gasto (Primero en la página) -->
         <section class="form-section">
+            <button type="button" class="btn btn-toggle-form" id="btn-toggle-form" aria-expanded="true" aria-controls="expense-form">
+                <span class="btn-toggle-content">
+                    <svg class="toggle-icon-plus" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Añadir Nuevo Gasto</span>
+                </span>
+                <svg class="chevron-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+
             <form id="expense-form" class="expense-form" autocomplete="off">
-                <h2 class="section-title">Nuevo Gasto</h2>
-                
                 <div class="form-group">
                     <label for="expense-concept">Concepto</label>
                     <input type="text" id="expense-concept" placeholder="Ej. Alquiler, Supermercado..." required maxlength="60">
@@ -127,15 +78,74 @@
 
                 <button type="submit" class="btn btn-primary" id="btn-submit">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    Añadir Gasto
+                    Guardar Gasto
                 </button>
             </form>
         </section>
 
-        <!-- Listado, Filtros y Exportación -->
+        <!-- 2. Totales: Total mes, Gastos Fijos y Gastos Personales -->
+        <section class="summary-section" aria-label="Resumen de gastos">
+            <div class="summary-card total">
+                <div class="total-content">
+                    <span class="card-label">Total del Mes</span>
+                    <span class="card-amount" id="total-amount">0,00 €</span>
+                </div>
+                <div class="total-icon" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                    </svg>
+                </div>
+            </div>
+            <div class="summary-row">
+                <div class="summary-card fixed">
+                    <div class="card-indicator fixed-indicator"></div>
+                    <span class="card-label">Gastos Fijos</span>
+                    <span class="card-amount" id="total-fixed">0,00 €</span>
+                </div>
+                <div class="summary-card personal">
+                    <div class="card-indicator personal-indicator"></div>
+                    <span class="card-label">Gastos Personales</span>
+                    <span class="card-amount" id="total-personal">0,00 €</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Gráfico de tarta comparativo -->
+        <section class="chart-section" aria-label="Distribución de gastos">
+            <h2 class="section-title">Distribución del Mes</h2>
+            <div class="chart-container">
+                <div class="pie-chart-wrapper">
+                    <svg id="pie-chart-svg" viewBox="0 0 160 160" class="pie-chart" aria-label="Gráfico de tarta de gastos">
+                        <!-- Círculos dinámicos generados por JS -->
+                    </svg>
+                    <div class="chart-center-label" id="chart-center-label">
+                        <span class="chart-center-text">100%</span>
+                    </div>
+                </div>
+                <div class="chart-legend" id="chart-legend">
+                    <div class="legend-item">
+                        <span class="legend-color fixed"></span>
+                        <div class="legend-info">
+                            <span class="legend-name">Gastos Fijos</span>
+                            <span class="legend-percent" id="fixed-percent">0%</span>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color personal"></span>
+                        <div class="legend-info">
+                            <span class="legend-name">Gastos Personales</span>
+                            <span class="legend-percent" id="personal-percent">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p id="chart-empty-message" class="chart-empty-note hidden">Añade gastos en este mes para visualizar el gráfico.</p>
+        </section>
+
+        <!-- 4. Listado de movimientos y botón de exportar a Excel -->
         <section class="list-section">
             <div class="list-header">
                 <div class="list-title-row">

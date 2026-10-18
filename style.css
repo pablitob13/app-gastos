@@ -146,6 +146,115 @@ body {
     cursor: pointer;
 }
 
+/* Sección de Formulario Superior */
+.form-section {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    padding: 1.15rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+}
+
+.btn-toggle-form {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    color: #ffffff;
+    border: none;
+    padding: 0.85rem 1.1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+    transition: all 0.2s ease;
+}
+
+.btn-toggle-form:hover {
+    background: linear-gradient(135deg, #0369a1, #1d4ed8);
+}
+
+.btn-toggle-content {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.chevron-icon {
+    transition: transform 0.25s ease;
+}
+
+.btn-toggle-form.collapsed .chevron-icon {
+    transform: rotate(-90deg);
+}
+
+.expense-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-subtle);
+    transition: all 0.2s ease;
+}
+
+.expense-form.collapsed {
+    display: none;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+select {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.85);
+    cursor: pointer;
+}
+
+input:focus, select:focus {
+    border-color: var(--color-primary);
+    background-color: var(--bg-surface-elevated);
+}
+
+select option {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+}
+
 /* Tarjetas y Contenedores */
 .summary-section {
     display: flex;
@@ -240,7 +349,6 @@ body {
 
 /* Gráfico de Tarta */
 .chart-section,
-.form-section,
 .list-section {
     background: var(--bg-surface);
     border-radius: var(--radius-lg);
@@ -348,65 +456,6 @@ body {
     text-align: center;
 }
 
-/* Formulario */
-.expense-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-    margin-top: 0.85rem;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    width: 100%;
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-}
-
-label {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-input[type="text"],
-input[type="number"],
-input[type="date"],
-select {
-    width: 100%;
-    padding: 0.7rem 0.85rem;
-    font-size: 0.95rem;
-    font-family: inherit;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background-color: var(--bg-input);
-    color: var(--text-primary);
-    box-sizing: border-box;
-    outline: none;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.85);
-    cursor: pointer;
-}
-
-input:focus, select:focus {
-    border-color: var(--color-primary);
-    background-color: var(--bg-surface-elevated);
-}
-
-select option {
-    background-color: var(--bg-surface);
-    color: var(--text-primary);
-}
-
 /* Botones */
 .btn {
     display: inline-flex;
@@ -427,7 +476,7 @@ select option {
 }
 
 .btn-primary {
-    background-color: var(--color-primary-hover);
+    background-color: #0284c7;
     color: #ffffff;
     margin-top: 0.3rem;
 }

@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFilter = 'all';
 
     // Referencias DOM
+    const btnToggleForm = document.getElementById('btn-toggle-form');
     const form = document.getElementById('expense-form');
     const conceptInput = document.getElementById('expense-concept');
     const amountInput = document.getElementById('expense-amount');
@@ -38,6 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dateInput.value = `${currentYear}-${currentMonth}-${currentDay}`;
     monthFilterInput.value = `${currentYear}-${currentMonth}`;
+
+    // Toggle para el botón principal "Añadir Nuevo Gasto"
+    btnToggleForm.addEventListener('click', () => {
+        const isCollapsed = form.classList.toggle('collapsed');
+        btnToggleForm.classList.toggle('collapsed', isCollapsed);
+        btnToggleForm.setAttribute('aria-expanded', !isCollapsed);
+        if (!isCollapsed) {
+            conceptInput.focus();
+        }
+    });
 
     // Cargar datos de LocalStorage
     function loadExpenses() {
