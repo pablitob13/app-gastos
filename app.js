@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'guarderia', 'tarjeta'
     ];
 
-    // Subcategorías de Gastos Fijos
+    // Subcategorías de Gastos Fijos (Piso y Cochera)
     const FIXED_PISO_KEYWORDS = [
         'alquiler', 'piso', 'hipoteca', 'comunidad', 'casa', 'luz', 'agua', 'gas',
         'internet', 'fibra'
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     monthFilterInput.value = currentMonthKey;
     resetDateField();
 
-    // Comprobar y mostrar recordatorio de inicio de mes (días 1 al 5)
+    // Comprobar y mostrar recordatorio visual del día 1 de mes (días 1 al 5)
     function checkMonthlyReminder() {
         const dayOfMonth = today.getDate();
         const isStartOfMonth = dayOfMonth >= 1 && dayOfMonth <= 5;
@@ -341,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return expenses.filter(item => item.date && item.date.startsWith(selectedMonth));
     }
 
-    // Actualizar el gráfico de tarta SVG con 6 categorías
+    // Actualizar el gráfico de tarta SVG con Piso, Cochera, Otros Fijos, Ocio, Bares y Caprichos
     function updatePieChart(totals, grandTotal) {
         const radius = 60;
         const circumference = 2 * Math.PI * radius; // ~376.99
@@ -395,12 +395,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Segmentos en orden visual armónico
         const segments = [
-            { key: 'fijo_piso', amount: totals.fijo_piso, color: '#6366f1' },       // Índigo
-            { key: 'fijo_cochera', amount: totals.fijo_cochera, color: '#8b5cf6' }, // Violeta
-            { key: 'fijo_otros', amount: totals.fijo_otros, color: '#94a3b8' },     // Pizarra suave
-            { key: 'ocio', amount: totals.ocio, color: '#38bdf8' },                 // Celeste
-            { key: 'bares', amount: totals.bares, color: '#f59e0b' },               // Ámbar
-            { key: 'caprichos', amount: totals.caprichos, color: '#34d399' }        // Verde esmeralda
+            { key: 'fijo_piso', amount: totals.fijo_piso, color: '#6366f1' },       // Índigo (Piso)
+            { key: 'fijo_cochera', amount: totals.fijo_cochera, color: '#8b5cf6' }, // Violeta (Cochera)
+            { key: 'fijo_otros', amount: totals.fijo_otros, color: '#94a3b8' },     // Pizarra suave (Otros Fijos)
+            { key: 'ocio', amount: totals.ocio, color: '#38bdf8' },                 // Celeste (Ocio)
+            { key: 'bares', amount: totals.bares, color: '#f59e0b' },               // Ámbar (Bares)
+            { key: 'caprichos', amount: totals.caprichos, color: '#34d399' }        // Verde esmeralda (Caprichos)
         ];
 
         let accumulatedOffset = 0;
