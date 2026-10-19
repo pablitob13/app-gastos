@@ -12,14 +12,101 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ==========================================
+    // 0. CONFIGURACIÓN SUPABASE (GASTOS PISO)
+    // ==========================================
+    const SUPABASE_URL = 'https://ryqyhkjcbyzzyndsztzi.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5cXloa2pjYnl6enluZHN6dHppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0Mzk3ODEsImV4cCI6MjEwODAxNTc4MX0.AJARzYFrmz-8x3sTkxKojJ2KsPPvPpHt_uyDRr2hpw8';
+
+    let supabaseClient = null;
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+        console.warn('Librería de Supabase no cargada todavía.');
+    }
+
+    // ==========================================
+    // NAVEGACIÓN ENTRE PESTAÑAS
+    // ==========================================
+    const tabBtnPersonal = document.getElementById('tab-btn-personal');
+    const tabBtnPiso = document.getElementById('tab-btn-piso');
+    const tabContentPersonal = document.getElementById('tab-content-personal');
+    const tabContentPiso = document.getElementById('tab-content-piso');
+
+    function switchTab(activeTab) {
+        if (activeTab === 'personal') {
+            tabBtnPersonal.classList.add('active');
+            tabBtnPersonal.setAttribute('aria-selected', 'true');
+            tabBtnPiso.classList.remove('active');
+            tabBtnPiso.setAttribute('aria-selected', 'false');
+
+            tabContentPersonal.classList.remove('hidden');
+            tabContentPiso.classList.add('hidden');
+        } else {
+            tabBtnPiso.classList.add('active');
+            tabBtnPiso.setAttribute('aria-selected', 'true');
+            tabBtnPersonal.classList.remove('active');
+            tabBtnPersonal.setAttribute('aria-selected', 'false');
+
+            tabContentPiso.classList.remove('hidden');
+            tabContentPersonal.classList.add('hidden');
+
+            // Cargar datos del piso al cambiar a la pestaña
+            fetchPisoRecords();
+        }
+    }
+
+    tabBtnPersonal.addEventListener('click', () => switchTab('personal'));
+    tabBtnPiso.addEventListener('click', () => switchTab('piso'));
+
+    // Helper: Formatear moneda en Euros
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('es-ES', {
+            style: 'currency',
+            currency: 'EUR',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    }
+
+    // Helper: Obtener fecha actual en formato YYYY-MM-DD
+    function getTodayDateString() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    // Helper: Formatear fecha para el listado (dd/mm/yyyy)
+    function formatDateDisplay(isoDateString) {
+        if (!isoDateString || !isoDateString.includes('-')) return isoDateString;
+        const [year, month, day] = isoDateString.split('T')[0].split('-');
+        return `${day}/${month}/${year}`;
+    }
+
+    // Escapar texto para prevenir XSS
+    function escapeHtml(string) {
+        if (!string) return '';
+        const div = document.createElement('div');
+        div.textContent = string;
+        return div.innerHTML;
+    }
+
+    const todayDate = new Date();
+    const currentYear = todayDate.getFullYear();
+    const currentMonth = String(todayDate.getMonth() + 1).padStart(2, '0');
+    const currentMonthKey = `${currentYear}-${currentMonth}`;
+
+    // ==========================================
+    // 1. PESTAÑA: MIS GASTOS (LOCALSTORAGE)
+    // ==========================================
     const STORAGE_KEY = 'monthly_expenses_app';
     const DISMISSED_REMINDER_PREFIX = 'dismissed_reminder_';
 
-    // Estado en memoria
     let expenses = [];
     let currentFilter = 'all';
 
-    // Referencias DOM
     const reminderBanner = document.getElementById('monthly-reminder-banner');
     const btnDismissReminder = document.getElementById('btn-dismiss-reminder');
 
@@ -61,7 +148,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnImportJsonTrigger = document.getElementById('btn-import-json-trigger');
     const jsonFileInput = document.getElementById('json-file-input');
 
-    // Palabras clave para categorización automática general
     const FIXED_KEYWORDS = [
         'alquiler', 'hipoteca', 'comunidad', 'piso', 'casa', 'luz', 'agua', 'gas',
         'internet', 'fibra', 'telefono', 'móvil', 'movil', 'cochera', 'garaje',
@@ -70,7 +156,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'guarderia', 'tarjeta'
     ];
 
-    // Subcategorías de Gastos Fijos (Piso y Cochera)
     const FIXED_PISO_KEYWORDS = [
         'alquiler', 'piso', 'hipoteca', 'comunidad', 'casa', 'luz', 'agua', 'gas',
         'internet', 'fibra'
@@ -80,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'cochera', 'garaje', 'parking', 'plaza'
     ];
 
-    // Subcategorías de Gastos Personales
     const LEISURE_KEYWORDS = [
         'cine', 'teatro', 'concierto', 'partido', 'streaming', 'netflix', 'spotify',
         'entradas', 'viaje', 'hotel', 'escapada', 'vuelo', 'tren', 'billete',
@@ -93,31 +177,15 @@ document.addEventListener('DOMContentLoaded', () => {
         'almuerzo', 'pizzeria', 'burger', 'hamburguesa', 'chiringuito', 'vermut'
     ];
 
-    // Helper: Obtener fecha actual en formato YYYY-MM-DD
-    function getTodayDateString() {
-        const today = new Date();
-        const y = today.getFullYear();
-        const m = String(today.getMonth() + 1).padStart(2, '0');
-        const d = String(today.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    }
-
-    // Inicializar campo fecha con el día actual
     function resetDateField() {
         dateInput.value = getTodayDateString();
     }
 
-    // Inicializar mes por defecto
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
-    const currentMonthKey = `${currentYear}-${currentMonth}`;
     monthFilterInput.value = currentMonthKey;
     resetDateField();
 
-    // Comprobar y mostrar recordatorio visual del día 1 de mes (días 1 al 5)
     function checkMonthlyReminder() {
-        const dayOfMonth = today.getDate();
+        const dayOfMonth = todayDate.getDate();
         const isStartOfMonth = dayOfMonth >= 1 && dayOfMonth <= 5;
         const dismissalKey = `${DISMISSED_REMINDER_PREFIX}${currentMonthKey}`;
         const isDismissed = localStorage.getItem(dismissalKey) === 'true';
@@ -129,14 +197,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Descartar aviso para el resto del mes actual
     btnDismissReminder.addEventListener('click', () => {
         const dismissalKey = `${DISMISSED_REMINDER_PREFIX}${currentMonthKey}`;
         localStorage.setItem(dismissalKey, 'true');
         reminderBanner.classList.add('hidden');
     });
 
-    // Toggle para el botón principal "Añadir Nuevo Gasto"
     btnToggleForm.addEventListener('click', () => {
         const isCollapsed = formContentWrapper.classList.toggle('collapsed');
         btnToggleForm.classList.toggle('collapsed', isCollapsed);
@@ -146,14 +212,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Detectar tipo de gasto a partir del texto de concepto
     function detectExpenseType(text) {
         const normalized = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const isFixed = FIXED_KEYWORDS.some(kw => normalized.includes(kw));
         return isFixed ? 'fijo' : 'personal';
     }
 
-    // Clasificación interna para el gráfico (Fijo: Piso, Cochera, Otros; Personal: Ocio, Bares, Caprichos)
     function classifySubcategory(expense) {
         const text = (expense.concept || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -167,7 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return 'fijo_otros';
         }
 
-        // Gastos personales
         if (LEISURE_KEYWORDS.some(kw => text.includes(kw))) {
             return 'ocio';
         }
@@ -177,15 +240,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'caprichos';
     }
 
-    // Parseador de Entrada Rápida (Soporta: "12.50 cena", "cena 12.50", "alquiler 600€", "15,80 cafe")
     function parseQuickEntry(input) {
         const trimmed = input.trim();
         if (!trimmed) return null;
 
-        // Limpiar símbolos de moneda opcionales
         const sanitized = trimmed.replace(/€/g, '').replace(/\$/g, '');
-
-        // Buscar coincidencia de importe en cualquier parte del texto
         const amountRegex = /(\d+(?:[.,]\d{1,2})?)/;
         const match = sanitized.match(amountRegex);
 
@@ -196,7 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isNaN(numericAmount) || numericAmount <= 0) return null;
 
-        // El concepto es todo el texto restante eliminando la parte numérica encontrada
         let conceptText = sanitized.replace(rawAmount, '').replace(/\s+/g, ' ').trim();
         conceptText = conceptText.replace(/^[-: ]+|[-: ]+$/g, '');
 
@@ -204,9 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             conceptText = 'Gasto variado';
         }
 
-        // Capitalizar primera letra del concepto
         conceptText = conceptText.charAt(0).toUpperCase() + conceptText.slice(1);
-
         const autoType = detectExpenseType(conceptText);
 
         return {
@@ -216,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Cargar datos procesados en el formulario
     function applyQuickEntry() {
         const val = quickEntryInput.value;
         const parsed = parseQuickEntry(val);
@@ -230,7 +285,6 @@ document.addEventListener('DOMContentLoaded', () => {
         typeSelect.value = parsed.type;
         resetDateField();
 
-        // Si el formulario estaba colapsado, desplegarlo
         if (formContentWrapper.classList.contains('collapsed')) {
             formContentWrapper.classList.remove('collapsed');
             btnToggleForm.classList.remove('collapsed');
@@ -249,7 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Soporte de Reconocimiento de Voz (Web Speech API)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
@@ -299,7 +352,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSpeech.style.display = 'none';
     }
 
-    // Cargar datos de LocalStorage
     function loadExpenses() {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
@@ -311,29 +363,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Guardar en LocalStorage
     function saveExpenses() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
     }
 
-    // Formatear moneda en Euros
-    function formatCurrency(amount) {
-        return new Intl.NumberFormat('es-ES', {
-            style: 'currency',
-            currency: 'EUR',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
-    }
-
-    // Formatear fecha para el listado (dd/mm/yyyy)
-    function formatDateDisplay(isoDateString) {
-        if (!isoDateString || !isoDateString.includes('-')) return isoDateString;
-        const [year, month, day] = isoDateString.split('-');
-        return `${day}/${month}/${year}`;
-    }
-
-    // Filtrar por el mes seleccionado en la cabecera (YYYY-MM)
     function getExpensesForSelectedMonth() {
         const selectedMonth = monthFilterInput.value;
         if (!selectedMonth) return expenses;
@@ -341,10 +374,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return expenses.filter(item => item.date && item.date.startsWith(selectedMonth));
     }
 
-    // Actualizar el gráfico de tarta SVG con Piso, Cochera, Otros Fijos, Ocio, Bares y Caprichos
     function updatePieChart(totals, grandTotal) {
         const radius = 60;
-        const circumference = 2 * Math.PI * radius; // ~376.99
+        const circumference = 2 * Math.PI * radius;
         const cx = 80;
         const cy = 80;
         const strokeWidth = 24;
@@ -374,7 +406,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chartEmptyMessage.classList.add('hidden');
 
-        // Porcentajes
         const pisoPct = Math.round((totals.fijo_piso / grandTotal) * 100);
         const cocheraPct = Math.round((totals.fijo_cochera / grandTotal) * 100);
         const otrosPct = Math.round((totals.fijo_otros / grandTotal) * 100);
@@ -393,14 +424,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalFixedPct = Math.round((totalFixedSum / grandTotal) * 100);
         chartCenterText.textContent = `${totalFixedPct}% F`;
 
-        // Segmentos en orden visual armónico
         const segments = [
-            { key: 'fijo_piso', amount: totals.fijo_piso, color: '#6366f1' },       // Índigo (Piso)
-            { key: 'fijo_cochera', amount: totals.fijo_cochera, color: '#8b5cf6' }, // Violeta (Cochera)
-            { key: 'fijo_otros', amount: totals.fijo_otros, color: '#94a3b8' },     // Pizarra suave (Otros Fijos)
-            { key: 'ocio', amount: totals.ocio, color: '#38bdf8' },                 // Celeste (Ocio)
-            { key: 'bares', amount: totals.bares, color: '#f59e0b' },               // Ámbar (Bares)
-            { key: 'caprichos', amount: totals.caprichos, color: '#34d399' }        // Verde esmeralda (Caprichos)
+            { key: 'fijo_piso', amount: totals.fijo_piso, color: '#6366f1' },
+            { key: 'fijo_cochera', amount: totals.fijo_cochera, color: '#8b5cf6' },
+            { key: 'fijo_otros', amount: totals.fijo_otros, color: '#94a3b8' },
+            { key: 'ocio', amount: totals.ocio, color: '#38bdf8' },
+            { key: 'bares', amount: totals.bares, color: '#f59e0b' },
+            { key: 'caprichos', amount: totals.caprichos, color: '#34d399' }
         ];
 
         let accumulatedOffset = 0;
@@ -426,7 +456,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Actualizar tarjetas de totales y gráfico
     function updateSummary(monthExpenses) {
         let total = 0;
         let totalFixed = 0;
@@ -464,7 +493,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePieChart(breakdown, total);
     }
 
-    // Renderizar la lista de gastos
     function renderList() {
         const monthExpenses = getExpensesForSelectedMonth();
         updateSummary(monthExpenses);
@@ -491,7 +519,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.className = 'expense-item';
 
-                // Se mantiene la lista limpia mostrando solo Fijo o Personal
                 const typeLabel = expense.type === 'fijo' ? 'Fijo' : 'Personal';
                 const badgeClass = expense.type === 'fijo' ? 'badge-fijo' : 'badge-personal';
 
@@ -519,14 +546,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Escapar texto para prevenir XSS
-    function escapeHtml(string) {
-        const div = document.createElement('div');
-        div.textContent = string;
-        return div.innerHTML;
-    }
-
-    // Navegar mes anterior / mes siguiente
     function changeMonth(offset) {
         const [yearStr, monthStr] = monthFilterInput.value.split('-');
         let year = parseInt(yearStr, 10);
@@ -543,7 +562,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPrevMonth.addEventListener('click', () => changeMonth(-1));
     btnNextMonth.addEventListener('click', () => changeMonth(1));
 
-    // Exportar a Excel (CSV con UTF-8 BOM)
     function exportToExcel() {
         const monthExpenses = getExpensesForSelectedMonth();
         const dataToExport = monthExpenses.length > 0 ? monthExpenses : expenses;
@@ -578,7 +596,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnExportExcel.addEventListener('click', exportToExcel);
 
-    // COPIA DE SEGURIDAD EN JSON: Exportar
     btnExportJson.addEventListener('click', () => {
         if (expenses.length === 0) {
             alert('No hay registros guardados para exportar en el backup.');
@@ -605,13 +622,11 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     });
 
-    // COPIA DE SEGURIDAD EN JSON: Trigger selector de archivo
     btnImportJsonTrigger.addEventListener('click', () => {
         jsonFileInput.value = '';
         jsonFileInput.click();
     });
 
-    // COPIA DE SEGURIDAD EN JSON: Importar y fusionar datos
     jsonFileInput.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
@@ -635,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const existingIds = new Set(expenses.map(e => e.id));
+                const existingIds = new Set(expenses.map(item => item.id));
                 let addedCount = 0;
 
                 importedList.forEach(item => {
@@ -669,7 +684,6 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsText(file);
     });
 
-    // Manejar envío de formulario
     form.addEventListener('submit', (e) => {
         e.preventDefault();
 
@@ -693,13 +707,11 @@ document.addEventListener('DOMContentLoaded', () => {
         expenses.push(newExpense);
         saveExpenses();
 
-        // Sincronizar el mes seleccionado si el nuevo gasto pertenece a otro mes
         const expenseMonth = date.substring(0, 7);
         if (monthFilterInput.value !== expenseMonth) {
             monthFilterInput.value = expenseMonth;
         }
 
-        // Restablecer formulario y volver a asignar la fecha de hoy automáticamente
         conceptInput.value = '';
         amountInput.value = '';
         quickEntryInput.value = '';
@@ -709,7 +721,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList();
     });
 
-    // Manejar eliminación de gastos
     expenseListEl.addEventListener('click', (e) => {
         const deleteButton = e.target.closest('.btn-delete');
         if (!deleteButton) return;
@@ -720,7 +731,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList();
     });
 
-    // Filtros de categoría
     filterPills.forEach(pill => {
         pill.addEventListener('click', () => {
             filterPills.forEach(p => p.classList.remove('active'));
@@ -730,19 +740,413 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Cambio directo en el selector de mes
     monthFilterInput.addEventListener('change', () => {
         renderList();
     });
 
-    // Auto-clasificación en el formulario mientras se escribe en el concepto
     conceptInput.addEventListener('input', () => {
         const detected = detectExpenseType(conceptInput.value);
         typeSelect.value = detected;
     });
 
-    // Inicio
+    // ==========================================
+    // 2. PESTAÑA: GASTOS PISO (SUPABASE REALTIME)
+    // ==========================================
+    let pisoRecords = [];
+    let currentPisoFilter = 'all';
+
+    const pisoMonthFilterInput = document.getElementById('piso-month-filter');
+    const pisoBtnPrevMonth = document.getElementById('piso-btn-prev-month');
+    const pisoBtnNextMonth = document.getElementById('piso-btn-next-month');
+
+    const pisoBalanceCard = document.getElementById('piso-balance-card');
+    const pisoDifferenceEl = document.getElementById('piso-difference');
+    const pisoBalanceStatusEl = document.getElementById('piso-balance-status');
+    const pisoTotalIncomeEl = document.getElementById('piso-total-income');
+    const pisoTotalExpenseEl = document.getElementById('piso-total-expense');
+    const pisoPabloTotalEl = document.getElementById('piso-pablo-total');
+    const pisoAlbaTotalEl = document.getElementById('piso-alba-total');
+
+    const pisoBtnToggleForm = document.getElementById('piso-btn-toggle-form');
+    const pisoFormContentWrapper = document.getElementById('piso-form-content-wrapper');
+    const pisoForm = document.getElementById('piso-form');
+    const pisoTypeSelect = document.getElementById('piso-type');
+    const pisoPaidBySelect = document.getElementById('piso-paid-by');
+    const pisoConceptInput = document.getElementById('piso-concept');
+    const pisoAmountInput = document.getElementById('piso-amount');
+    const pisoDateInput = document.getElementById('piso-date');
+
+    const pisoExpenseListEl = document.getElementById('piso-expense-list');
+    const pisoEmptyStateEl = document.getElementById('piso-empty-state');
+    const pisoFilterPills = document.querySelectorAll('[data-piso-filter]');
+    const pisoSyncStatusEl = document.getElementById('piso-sync-status');
+
+    pisoMonthFilterInput.value = currentMonthKey;
+    pisoDateInput.value = getTodayDateString();
+
+    pisoBtnToggleForm.addEventListener('click', () => {
+        const isCollapsed = pisoFormContentWrapper.classList.toggle('collapsed');
+        pisoBtnToggleForm.classList.toggle('collapsed', isCollapsed);
+        pisoBtnToggleForm.setAttribute('aria-expanded', !isCollapsed);
+        if (!isCollapsed) {
+            pisoConceptInput.focus();
+        }
+    });
+
+    function changePisoMonth(offset) {
+        const [yearStr, monthStr] = pisoMonthFilterInput.value.split('-');
+        let year = parseInt(yearStr, 10);
+        let month = parseInt(monthStr, 10) - 1;
+
+        const newDate = new Date(year, month + offset, 1);
+        const nextYear = newDate.getFullYear();
+        const nextMonth = String(newDate.getMonth() + 1).padStart(2, '0');
+
+        pisoMonthFilterInput.value = `${nextYear}-${nextMonth}`;
+        renderPisoList();
+    }
+
+    pisoBtnPrevMonth.addEventListener('click', () => changePisoMonth(-1));
+    pisoBtnNextMonth.addEventListener('click', () => changePisoMonth(1));
+    pisoMonthFilterInput.addEventListener('change', () => renderPisoList());
+
+    function getPisoRecordsForSelectedMonth() {
+        const selectedMonth = pisoMonthFilterInput.value;
+        if (!selectedMonth) return pisoRecords;
+        return pisoRecords.filter(item => item.fecha && item.fecha.startsWith(selectedMonth));
+    }
+
+    function updatePisoSummary(records) {
+        let totalIncome = 0;
+        let totalExpense = 0;
+        let pabloPaid = 0;
+        let albaPaid = 0;
+
+        records.forEach(item => {
+            const amount = parseFloat(item.importe) || 0;
+            const type = (item.tipo || 'gasto').toLowerCase();
+            const payer = (item.pagado_por || item.persona || '').toLowerCase();
+
+            if (type === 'ingreso') {
+                totalIncome += amount;
+            } else {
+                totalExpense += amount;
+                if (payer === 'pablo') {
+                    pabloPaid += amount;
+                } else if (payer === 'alba') {
+                    albaPaid += amount;
+                }
+            }
+        });
+
+        const difference = totalIncome - totalExpense;
+
+        pisoTotalIncomeEl.textContent = formatCurrency(totalIncome);
+        pisoTotalExpenseEl.textContent = formatCurrency(totalExpense);
+        pisoDifferenceEl.textContent = formatCurrency(difference);
+        pisoPabloTotalEl.textContent = formatCurrency(pabloPaid);
+        pisoAlbaTotalEl.textContent = formatCurrency(albaPaid);
+
+        pisoBalanceCard.classList.remove('positive', 'negative');
+        if (difference > 0) {
+            pisoBalanceCard.classList.add('positive');
+            pisoBalanceStatusEl.textContent = 'Superávit / Saldo a favor';
+        } else if (difference < 0) {
+            pisoBalanceCard.classList.add('negative');
+            pisoBalanceStatusEl.textContent = 'Déficit / Aportar fondos';
+        } else {
+            pisoBalanceStatusEl.textContent = 'Equilibrado';
+        }
+    }
+
+    function renderPisoList() {
+        const monthRecords = getPisoRecordsForSelectedMonth();
+        updatePisoSummary(monthRecords);
+
+        let displayList = monthRecords;
+        if (currentPisoFilter !== 'all') {
+            displayList = displayList.filter(item => {
+                const tipo = (item.tipo || 'gasto').toLowerCase();
+                const payer = item.pagado_por || item.persona || '';
+
+                if (currentPisoFilter === 'gasto' || currentPisoFilter === 'ingreso') {
+                    return tipo === currentPisoFilter;
+                }
+                return payer.toLowerCase() === currentPisoFilter.toLowerCase();
+            });
+        }
+
+        displayList.sort((a, b) => {
+            const dateA = a.fecha || '';
+            const dateB = b.fecha || '';
+            if (dateB !== dateA) {
+                return dateB.localeCompare(dateA);
+            }
+            return (b.id || 0) - (a.id || 0);
+        });
+
+        pisoExpenseListEl.innerHTML = '';
+
+        if (displayList.length === 0) {
+            pisoEmptyStateEl.classList.remove('hidden');
+        } else {
+            pisoEmptyStateEl.classList.add('hidden');
+            displayList.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'expense-item';
+
+                const isIngreso = (item.tipo || 'gasto').toLowerCase() === 'ingreso';
+                const typeLabel = isIngreso ? 'Ingreso' : 'Gasto';
+                const typeBadgeClass = isIngreso ? 'badge-ingreso' : 'badge-gasto';
+
+                const payer = item.pagado_por || item.persona || 'Pablo';
+                const payerClass = payer.toLowerCase() === 'alba' ? 'badge-alba' : 'badge-pablo';
+
+                const formattedAmount = `${isIngreso ? '+' : '-'}${formatCurrency(item.importe)}`;
+
+                li.innerHTML = `
+                    <div class="expense-info">
+                        <span class="expense-concept">${escapeHtml(item.concepto)}</span>
+                        <div class="expense-meta">
+                            <span>${formatDateDisplay(item.fecha)}</span>
+                            <span class="badge ${typeBadgeClass}">${typeLabel}</span>
+                            <span class="badge ${payerClass}">${escapeHtml(payer)}</span>
+                        </div>
+                    </div>
+                    <div class="expense-right">
+                        <span class="expense-amount ${isIngreso ? 'income' : ''}">${formattedAmount}</span>
+                        <button type="button" class="btn-delete piso-btn-delete" data-id="${item.id}" aria-label="Eliminar registro" title="Eliminar registro">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                pisoExpenseListEl.appendChild(li);
+            });
+        }
+    }
+
+    // Cargar datos de la tabla 'gastos_piso' desde Supabase
+    async function fetchPisoRecords() {
+        if (!supabaseClient) {
+            pisoSyncStatusEl.textContent = 'Sin conexión';
+            pisoSyncStatusEl.style.color = '#f87171';
+            return;
+        }
+
+        try {
+            pisoSyncStatusEl.textContent = 'Sincronizando...';
+            const { data, error } = await supabaseClient
+                .from('gastos_piso')
+                .select('*')
+                .order('fecha', { ascending: false });
+
+            if (error) {
+                console.error('Error al leer de gastos_piso:', error);
+                pisoSyncStatusEl.textContent = 'Error de conexión';
+                pisoSyncStatusEl.style.color = '#f87171';
+                return;
+            }
+
+            pisoRecords = (data || []).map(row => ({
+                id: row.id,
+                concepto: row.concepto || row.concept || 'Sin concepto',
+                importe: parseFloat(row.importe || row.amount || 0),
+                fecha: row.fecha || row.date || getTodayDateString(),
+                tipo: row.tipo || row.type || 'gasto',
+                pagado_por: row.pagado_por || row.persona || row.paid_by || 'Pablo'
+            }));
+
+            pisoSyncStatusEl.textContent = 'Conectado en directo';
+            pisoSyncStatusEl.style.color = '#34d399';
+            renderPisoList();
+        } catch (err) {
+            console.error('Fallo en fetchPisoRecords:', err);
+            pisoSyncStatusEl.textContent = 'Modo Offline';
+        }
+    }
+
+    // Configurar suscripción Realtime en Supabase para gastos_piso
+    function setupRealtimeSubscription() {
+        if (!supabaseClient) return;
+
+        try {
+            supabaseClient
+                .channel('public:gastos_piso')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'gastos_piso' }, payload => {
+                    if (payload.eventType === 'INSERT') {
+                        const newRow = payload.new;
+                        const formatted = {
+                            id: newRow.id,
+                            concepto: newRow.concepto || newRow.concept || 'Sin concepto',
+                            importe: parseFloat(newRow.importe || newRow.amount || 0),
+                            fecha: newRow.fecha || newRow.date || getTodayDateString(),
+                            tipo: newRow.tipo || newRow.type || 'gasto',
+                            pagado_por: newRow.pagado_por || newRow.persona || newRow.paid_by || 'Pablo'
+                        };
+                        pisoRecords = pisoRecords.filter(item => item.id !== formatted.id);
+                        pisoRecords.unshift(formatted);
+                    } else if (payload.eventType === 'DELETE') {
+                        pisoRecords = pisoRecords.filter(item => item.id !== payload.old.id);
+                    } else if (payload.eventType === 'UPDATE') {
+                        const updatedRow = payload.new;
+                        pisoRecords = pisoRecords.map(item => item.id === updatedRow.id ? {
+                            id: updatedRow.id,
+                            concepto: updatedRow.concepto || updatedRow.concept || item.concepto,
+                            importe: parseFloat(updatedRow.importe || updatedRow.amount || item.importe),
+                            fecha: updatedRow.fecha || updatedRow.date || item.fecha,
+                            tipo: updatedRow.tipo || updatedRow.type || item.tipo,
+                            pagado_por: updatedRow.pagado_por || updatedRow.persona || updatedRow.paid_by || item.pagado_por
+                        } : item);
+                    }
+                    renderPisoList();
+                })
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        pisoSyncStatusEl.textContent = 'Conectado en directo';
+                    }
+                });
+        } catch (err) {
+            console.warn('Realtime no disponible:', err);
+        }
+    }
+
+    // Enviar nuevo movimiento a Supabase
+    pisoForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const concepto = pisoConceptInput.value.trim();
+        const importe = parseFloat(pisoAmountInput.value);
+        const fecha = pisoDateInput.value;
+        const tipo = pisoTypeSelect.value;
+        const pagado_por = pisoPaidBySelect.value;
+
+        if (!concepto || isNaN(importe) || importe <= 0 || !fecha) {
+            return;
+        }
+
+        const newRecord = {
+            concepto,
+            importe,
+            fecha,
+            tipo,
+            pagado_por
+        };
+
+        if (!supabaseClient) {
+            alert('No hay conexión con Supabase. Revisa tu red.');
+            return;
+        }
+
+        const submitBtn = document.getElementById('piso-btn-submit');
+        submitBtn.disabled = true;
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('gastos_piso')
+                .insert([newRecord])
+                .select();
+
+            if (error) {
+                console.error('Error insertando en Supabase:', error);
+                alert('No se pudo guardar en Supabase: ' + error.message);
+                return;
+            }
+
+            // Sincronizar mes visible
+            const recordMonth = fecha.substring(0, 7);
+            if (pisoMonthFilterInput.value !== recordMonth) {
+                pisoMonthFilterInput.value = recordMonth;
+            }
+
+            // Si vino el registro insertado y realtime aún no lo puso
+            if (data && data[0]) {
+                const inserted = {
+                    id: data[0].id,
+                    concepto: data[0].concepto || concepto,
+                    importe: parseFloat(data[0].importe || importe),
+                    fecha: data[0].fecha || fecha,
+                    tipo: data[0].tipo || tipo,
+                    pagado_por: data[0].pagado_por || pagado_por
+                };
+                if (!pisoRecords.some(r => r.id === inserted.id)) {
+                    pisoRecords.unshift(inserted);
+                }
+            }
+
+            pisoConceptInput.value = '';
+            pisoAmountInput.value = '';
+            pisoDateInput.value = getTodayDateString();
+            pisoConceptInput.focus();
+
+            renderPisoList();
+        } catch (err) {
+            console.error('Error inesperado al guardar gasto del piso:', err);
+            alert('Ocurrió un error inesperado al conectar con Supabase.');
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+
+    // Eliminar registro de gastos_piso en Supabase
+    pisoExpenseListEl.addEventListener('click', async (e) => {
+        const deleteButton = e.target.closest('.piso-btn-delete');
+        if (!deleteButton) return;
+
+        const idToDelete = deleteButton.dataset.id;
+        if (!idToDelete) return;
+
+        if (!confirm('¿Eliminar este movimiento del piso?')) {
+            return;
+        }
+
+        if (!supabaseClient) {
+            alert('No hay conexión con Supabase.');
+            return;
+        }
+
+        try {
+            const { error } = await supabaseClient
+                .from('gastos_piso')
+                .delete()
+                .eq('id', idToDelete);
+
+            if (error) {
+                console.error('Error al eliminar registro de Supabase:', error);
+                alert('Error al borrar: ' + error.message);
+                return;
+            }
+
+            pisoRecords = pisoRecords.filter(item => String(item.id) !== String(idToDelete));
+            renderPisoList();
+        } catch (err) {
+            console.error('Fallo al borrar:', err);
+        }
+    });
+
+    // Filtros de la pestaña Gastos Piso
+    pisoFilterPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            pisoFilterPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            currentPisoFilter = pill.dataset.pisoFilter;
+            renderPisoList();
+        });
+    });
+
+    // ==========================================
+    // 3. INICIALIZACIÓN GENERAL
+    // ==========================================
     checkMonthlyReminder();
     loadExpenses();
     renderList();
+
+    // Iniciar Supabase y Realtime en segundo plano
+    if (supabaseClient) {
+        setupRealtimeSubscription();
+        fetchPisoRecords();
+    }
 });

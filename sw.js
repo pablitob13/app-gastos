@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mis-gastos-v2';
+const CACHE_NAME = 'mis-gastos-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,10 +6,11 @@ const ASSETS_TO_CACHE = [
   './app.js',
   './manifest.json',
   './icon.svg',
-  'https://cdn.jsdelivr.net/npm/chart.js'
+  'https://cdn.jsdelivr.net/npm/chart.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
-// Instalación: Cachear de antemano todos los recursos locales y Chart.js CDN
+// Instalación: Cachear de antemano todos los recursos locales y librerías CDN
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -35,7 +36,9 @@ self.addEventListener('activate', (event) => {
 
 // Estrategia Cache-First para garantizar funcionamiento completo en iOS/Modo Avión
 self.addEventListener('fetch', (event) => {
+  // Las llamadas POST/PUT/DELETE o llamadas REST a la API de Supabase no deben ser interceptadas por cache-first
   if (event.request.method !== 'GET') return;
+  if (event.request.url.includes('supabase.co')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -43,7 +46,7 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
 
-      // Si no está en caché, buscar en red y almacenar si es válido
+      // Si no está en caché, buscar en red y almacenar si es un activo estático
       return fetch(event.request).then((networkResponse) => {
         if (
           networkResponse &&
