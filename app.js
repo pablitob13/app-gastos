@@ -750,7 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // 2. PESTAÑA: GASTOS PISO (SUPABASE REALTIME)
+    // 2. PESTAÑA: GASTOS PISO (CAJA COMÚN SUPABASE)
     // ==========================================
     let pisoRecords = [];
     let currentPisoFilter = 'all';
@@ -764,14 +764,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const pisoBalanceStatusEl = document.getElementById('piso-balance-status');
     const pisoTotalIncomeEl = document.getElementById('piso-total-income');
     const pisoTotalExpenseEl = document.getElementById('piso-total-expense');
-    const pisoPabloTotalEl = document.getElementById('piso-pablo-total');
-    const pisoAlbaTotalEl = document.getElementById('piso-alba-total');
 
     const pisoBtnToggleForm = document.getElementById('piso-btn-toggle-form');
     const pisoFormContentWrapper = document.getElementById('piso-form-content-wrapper');
     const pisoForm = document.getElementById('piso-form');
     const pisoTypeSelect = document.getElementById('piso-type');
-    const pisoPaidBySelect = document.getElementById('piso-paid-by');
     const pisoConceptInput = document.getElementById('piso-concept');
     const pisoAmountInput = document.getElementById('piso-amount');
     const pisoDateInput = document.getElementById('piso-date');
@@ -819,43 +816,33 @@ document.addEventListener('DOMContentLoaded', () => {
     function updatePisoSummary(records) {
         let totalIncome = 0;
         let totalExpense = 0;
-        let pabloPaid = 0;
-        let albaPaid = 0;
 
         records.forEach(item => {
             const amount = parseFloat(item.importe) || 0;
             const type = (item.tipo || 'gasto').toLowerCase();
-            const payer = (item.pagado_por || item.persona || '').toLowerCase();
 
             if (type === 'ingreso') {
                 totalIncome += amount;
             } else {
                 totalExpense += amount;
-                if (payer === 'pablo') {
-                    pabloPaid += amount;
-                } else if (payer === 'alba') {
-                    albaPaid += amount;
-                }
             }
         });
 
-        const difference = totalIncome - totalExpense;
+        const remainingBalance = totalIncome - totalExpense;
 
         pisoTotalIncomeEl.textContent = formatCurrency(totalIncome);
         pisoTotalExpenseEl.textContent = formatCurrency(totalExpense);
-        pisoDifferenceEl.textContent = formatCurrency(difference);
-        pisoPabloTotalEl.textContent = formatCurrency(pabloPaid);
-        pisoAlbaTotalEl.textContent = formatCurrency(albaPaid);
+        pisoDifferenceEl.textContent = formatCurrency(remainingBalance);
 
         pisoBalanceCard.classList.remove('positive', 'negative');
-        if (difference > 0) {
+        if (remainingBalance > 0) {
             pisoBalanceCard.classList.add('positive');
-            pisoBalanceStatusEl.textContent = 'Superávit / Saldo a favor';
-        } else if (difference < 0) {
+            pisoBalanceStatusEl.textContent = 'Saldo a favor / En cuenta';
+        } else if (remainingBalance < 0) {
             pisoBalanceCard.classList.add('negative');
-            pisoBalanceStatusEl.textContent = 'Déficit / Aportar fondos';
+            pisoBalanceStatusEl.textContent = 'Déficit / Falta aportar fondos';
         } else {
-            pisoBalanceStatusEl.textContent = 'Equilibrado';
+            pisoBalanceStatusEl.textContent = 'Cuenta en 0 €';
         }
     }
 
@@ -867,12 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentPisoFilter !== 'all') {
             displayList = displayList.filter(item => {
                 const tipo = (item.tipo || 'gasto').toLowerCase();
-                const payer = item.pagado_por || item.persona || '';
-
-                if (currentPisoFilter === 'gasto' || currentPisoFilter === 'ingreso') {
-                    return tipo === currentPisoFilter;
-                }
-                return payer.toLowerCase() === currentPisoFilter.toLowerCase();
+                return tipo === currentPisoFilter;
             });
         }
 
@@ -898,10 +880,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isIngreso = (item.tipo || 'gasto').toLowerCase() === 'ingreso';
                 const typeLabel = isIngreso ? 'Ingreso' : 'Gasto';
                 const typeBadgeClass = isIngreso ? 'badge-ingreso' : 'badge-gasto';
-
-                const payer = item.pagado_por || item.persona || 'Pablo';
-                const payerClass = payer.toLowerCase() === 'alba' ? 'badge-alba' : 'badge-pablo';
-
                 const formattedAmount = `${isIngreso ? '+' : '-'}${formatCurrency(item.importe)}`;
 
                 li.innerHTML = `
@@ -910,7 +888,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="expense-meta">
                             <span>${formatDateDisplay(item.fecha)}</span>
                             <span class="badge ${typeBadgeClass}">${typeLabel}</span>
-                            <span class="badge ${payerClass}">${escapeHtml(payer)}</span>
                         </div>
                     </div>
                     <div class="expense-right">
@@ -957,7 +934,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 importe: parseFloat(row.importe || row.amount || 0),
                 fecha: row.fecha || row.date || getTodayDateString(),
                 tipo: row.tipo || row.type || 'gasto',
-                pagado_por: row.pagado_por || row.persona || row.paid_by || 'Pablo'
+                pagado_por: row.pagado_por || row.persona || 'Común'
             }));
 
             pisoSyncStatusEl.textContent = 'Conectado en directo';
@@ -985,7 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             importe: parseFloat(newRow.importe || newRow.amount || 0),
                             fecha: newRow.fecha || newRow.date || getTodayDateString(),
                             tipo: newRow.tipo || newRow.type || 'gasto',
-                            pagado_por: newRow.pagado_por || newRow.persona || newRow.paid_by || 'Pablo'
+                            pagado_por: newRow.pagado_por || 'Común'
                         };
                         pisoRecords = pisoRecords.filter(item => item.id !== formatted.id);
                         pisoRecords.unshift(formatted);
@@ -999,7 +976,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             importe: parseFloat(updatedRow.importe || updatedRow.amount || item.importe),
                             fecha: updatedRow.fecha || updatedRow.date || item.fecha,
                             tipo: updatedRow.tipo || updatedRow.type || item.tipo,
-                            pagado_por: updatedRow.pagado_por || updatedRow.persona || updatedRow.paid_by || item.pagado_por
+                            pagado_por: updatedRow.pagado_por || item.pagado_por || 'Común'
                         } : item);
                     }
                     renderPisoList();
@@ -1022,7 +999,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const importe = parseFloat(pisoAmountInput.value);
         const fecha = pisoDateInput.value;
         const tipo = pisoTypeSelect.value;
-        const pagado_por = pisoPaidBySelect.value;
 
         if (!concepto || isNaN(importe) || importe <= 0 || !fecha) {
             return;
@@ -1033,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
             importe,
             fecha,
             tipo,
-            pagado_por
+            pagado_por: 'Común'
         };
 
         if (!supabaseClient) {
@@ -1070,7 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     importe: parseFloat(data[0].importe || importe),
                     fecha: data[0].fecha || fecha,
                     tipo: data[0].tipo || tipo,
-                    pagado_por: data[0].pagado_por || pagado_por
+                    pagado_por: data[0].pagado_por || 'Común'
                 };
                 if (!pisoRecords.some(r => r.id === inserted.id)) {
                     pisoRecords.unshift(inserted);

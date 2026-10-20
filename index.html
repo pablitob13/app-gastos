@@ -24,9 +24,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Chart.js CDN precacheado para compatibilidad offline completa -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <!-- Supabase JS CDN precacheado -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -332,7 +329,7 @@
             <header class="app-header">
                 <div class="header-brand">
                     <h1>Gastos Piso</h1>
-                    <p class="header-subtitle">Compartido con Pablo &amp; Alba (Supabase)</p>
+                    <p class="header-subtitle">Caja común del piso (Supabase)</p>
                 </div>
                 <div class="month-navigation">
                     <button type="button" class="btn-icon" id="piso-btn-prev-month" aria-label="Mes anterior" title="Mes anterior">
@@ -352,57 +349,39 @@
                 </div>
             </header>
 
-            <!-- Resumen Financiero Piso (Ingresos, Gastos, Diferencia y Quién Pagó) -->
+            <!-- Resumen Financiero Global del Piso -->
             <section class="summary-section" aria-label="Resumen de gastos e ingresos del piso">
-                <!-- Tarjeta Principal: Balance / Diferencia -->
+                <!-- Tarjeta Principal: Saldo Restante / Balance del Piso -->
                 <div class="summary-card piso-balance-card" id="piso-balance-card">
                     <div class="total-content">
-                        <span class="card-label">Diferencia (Ingresos - Gastos)</span>
+                        <span class="card-label">Saldo Restante de la Cuenta</span>
                         <span class="card-amount" id="piso-difference">0,00 €</span>
                         <span class="piso-balance-status" id="piso-balance-status">Equilibrado</span>
                     </div>
                     <div class="total-icon" aria-hidden="true">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                            <line x1="2" y1="10" x2="22" y2="10"></line>
                         </svg>
                     </div>
                 </div>
 
-                <!-- Tarjetas Ingresos y Gastos -->
+                <!-- Tarjetas Totales: Total Gastado vs Total Ingresado -->
                 <div class="summary-row">
-                    <div class="summary-card income">
-                        <div class="card-indicator income-indicator"></div>
-                        <span class="card-label">Total Ingresos</span>
-                        <span class="card-amount" id="piso-total-income">0,00 €</span>
-                    </div>
                     <div class="summary-card expense">
                         <div class="card-indicator expense-indicator"></div>
-                        <span class="card-label">Total Gastos</span>
+                        <span class="card-label">Total Gastado</span>
                         <span class="card-amount" id="piso-total-expense">0,00 €</span>
                     </div>
-                </div>
-
-                <!-- Desglose por Persona: Pablo vs Alba -->
-                <div class="summary-row">
-                    <div class="summary-card person-card pablo">
-                        <div class="person-header">
-                            <span class="avatar-tag pablo">P</span>
-                            <span class="card-label">Pablo pagó</span>
-                        </div>
-                        <span class="card-amount" id="piso-pablo-total">0,00 €</span>
-                    </div>
-                    <div class="summary-card person-card alba">
-                        <div class="person-header">
-                            <span class="avatar-tag alba">A</span>
-                            <span class="card-label">Alba pagó</span>
-                        </div>
-                        <span class="card-amount" id="piso-alba-total">0,00 €</span>
+                    <div class="summary-card income">
+                        <div class="card-indicator income-indicator"></div>
+                        <span class="card-label">Total Ingresado</span>
+                        <span class="card-amount" id="piso-total-income">0,00 €</span>
                     </div>
                 </div>
             </section>
 
-            <!-- Formulario Añadir Movimiento Piso (Gasto o Ingreso) -->
+            <!-- Formulario Simplificado: Añadir Movimiento al Piso (Fecha, Concepto, Importe y Tipo) -->
             <section class="form-section">
                 <button type="button" class="btn btn-toggle-form piso-toggle" id="piso-btn-toggle-form" aria-expanded="true" aria-controls="piso-form-content-wrapper">
                     <span class="btn-toggle-content">
@@ -419,26 +398,17 @@
 
                 <div id="piso-form-content-wrapper" class="form-collapsible">
                     <form id="piso-form" class="expense-form" autocomplete="off">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="piso-type">Tipo de Movimiento</label>
-                                <select id="piso-type" required>
-                                    <option value="gasto">Gasto del Piso</option>
-                                    <option value="ingreso">Ingreso / Aportación</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="piso-paid-by">Quién lo pagó / ingresó</label>
-                                <select id="piso-paid-by" required>
-                                    <option value="Pablo">Pablo</option>
-                                    <option value="Alba">Alba</option>
-                                </select>
-                            </div>
+                        <div class="form-group">
+                            <label for="piso-type">Tipo de Movimiento</label>
+                            <select id="piso-type" required>
+                                <option value="gasto">Gasto del Piso</option>
+                                <option value="ingreso">Ingreso a la Cuenta</option>
+                            </select>
                         </div>
 
                         <div class="form-group">
                             <label for="piso-concept">Concepto</label>
-                            <input type="text" id="piso-concept" placeholder="Ej. Mercadona, Luz, WiFi, Ingreso mensual..." required maxlength="60">
+                            <input type="text" id="piso-concept" placeholder="Ej. Mercadona, Luz, WiFi, Aportación mensual..." required maxlength="60">
                         </div>
 
                         <div class="form-row">
@@ -463,7 +433,7 @@
                 </div>
             </section>
 
-            <!-- Listado de Movimientos del Piso -->
+            <!-- Listado Simplificado de Movimientos del Piso -->
             <section class="list-section">
                 <div class="list-header">
                     <div class="list-title-row">
@@ -474,8 +444,6 @@
                         <button type="button" class="pill active" data-piso-filter="all">Todos</button>
                         <button type="button" class="pill" data-piso-filter="gasto">Gastos</button>
                         <button type="button" class="pill" data-piso-filter="ingreso">Ingresos</button>
-                        <button type="button" class="pill" data-piso-filter="Pablo">Pablo</button>
-                        <button type="button" class="pill" data-piso-filter="Alba">Alba</button>
                     </div>
                 </div>
 
