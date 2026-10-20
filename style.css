@@ -65,8 +65,9 @@ body {
     color: var(--text-primary);
     font-family: var(--font-sans);
     line-height: 1.5;
-    padding-bottom: 3rem;
+    padding-bottom: 3.5rem;
     min-height: 100vh;
+    padding-top: env(safe-area-inset-top, 0px);
 }
 
 .sr-only {
@@ -81,60 +82,90 @@ body {
     border: 0;
 }
 
+/* Envoltorio principal para escritorio y móviles */
+.app-wrapper {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    background-color: var(--bg-primary);
+}
+
 .app-container {
     width: 100%;
     max-width: 540px;
     margin: 0 auto;
-    padding: 1rem;
+    padding: 1.1rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 1.15rem;
+    gap: 1.25rem;
 }
 
-/* Selector de Pestañas Superior */
-.main-tabs {
+/* ========================================================= */
+/* BARRA SUPERIOR DE PESTAÑAS (SEGMENTED CONTROL MODERNO)    */
+/* ========================================================= */
+.main-tabs-wrapper {
+    width: 100%;
     display: flex;
-    background: var(--bg-surface);
-    padding: 0.35rem;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    gap: 0.35rem;
+    justify-content: center;
+    margin: 0.25rem 0 0.5rem 0;
+    position: relative;
+    z-index: 10;
+}
+
+.main-tabs {
+    display: inline-flex;
+    width: 100%;
+    background-color: #0e1526;
+    padding: 4px;
+    border-radius: 9999px;
+    border: 1px solid #23314f;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(0, 0, 0, 0.5);
+    gap: 4px;
+    position: relative;
 }
 
 .main-tab-btn {
     flex: 1;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    border: none;
+    gap: 0.45rem;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid transparent;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     font-weight: 600;
-    border-radius: var(--radius-md);
+    border-radius: 9999px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.main-tab-btn:hover {
+    color: #e2e8f0;
 }
 
 .main-tab-btn.active {
-    background: linear-gradient(135deg, #1e2942, #293859);
+    background: linear-gradient(180deg, #243252 0%, #17223b 100%);
     color: #ffffff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    font-weight: 600;
 }
 
 .live-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background-color: #10b981;
     box-shadow: 0 0 8px #10b981;
     display: inline-block;
     animation: livePulse 2s infinite;
+    margin-left: 2px;
 }
 
 @keyframes livePulse {
