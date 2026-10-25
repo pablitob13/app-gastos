@@ -55,21 +55,15 @@
             <!-- PESTAÑA 1: MIS GASTOS (LOCALSTORAGE PRIVADO)  -->
             <!-- ============================================== -->
             <div id="tab-content-personal" class="tab-pane active" role="tabpanel" aria-labelledby="tab-btn-personal">
-                <!-- Banner de Recordatorio de Inicio de Mes (Días 1-5) -->
+                <!-- Banner Alerta de Pago de Piso y Cochera -->
                 <aside id="monthly-reminder-banner" class="reminder-banner hidden" role="alert" aria-live="polite">
                     <div class="reminder-content">
-                        <span class="reminder-icon" aria-hidden="true">🔔</span>
+                        <span class="reminder-icon" aria-hidden="true">⚠️</span>
                         <div class="reminder-text">
-                            <strong>Recordatorio de inicio de mes:</strong>
-                            <span>Revisar pagos de Piso y Cochera</span>
+                            <strong>PAGAR PISO Y COCHERA</strong>
+                            <span id="reminder-pending-text">Falta registrar el pago correspondiente a este mes.</span>
                         </div>
                     </div>
-                    <button type="button" class="btn-dismiss-reminder" id="btn-dismiss-reminder" aria-label="Descartar recordatorio este mes" title="Descartar recordatorio">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
                 </aside>
 
                 <!-- Cabecera y Navegación de Meses -->
@@ -136,7 +130,7 @@
                             </div>
                         </div>
 
-                        <!-- Formulario Habitual -->
+                        <!-- Formulario Habitual (Tipo de gasto automático) -->
                         <form id="expense-form" class="expense-form" autocomplete="off">
                             <div class="form-group">
                                 <label for="expense-concept">Concepto</label>
@@ -153,14 +147,6 @@
                                     <label for="expense-date">Fecha</label>
                                     <input type="date" id="expense-date" required>
                                 </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="expense-type">Tipo de Gasto</label>
-                                <select id="expense-type" required>
-                                    <option value="fijo">Gasto Fijo</option>
-                                    <option value="personal">Gasto Personal</option>
-                                </select>
                             </div>
 
                             <button type="submit" class="btn btn-primary" id="btn-submit">
@@ -328,7 +314,7 @@
             <!-- PESTAÑA 2: GASTOS PISO (SUPABASE COMPARTIDO)  -->
             <!-- ============================================== -->
             <div id="tab-content-piso" class="tab-pane hidden" role="tabpanel" aria-labelledby="tab-btn-piso">
-                <!-- Header Gastos Piso -->
+                <!-- Header Gastos Piso con Navegación de Meses -->
                 <header class="app-header">
                     <div class="header-brand">
                         <h1>Gastos Piso</h1>
@@ -352,39 +338,7 @@
                     </div>
                 </header>
 
-                <!-- Resumen Financiero Global del Piso -->
-                <section class="summary-section" aria-label="Resumen de gastos e ingresos del piso">
-                    <!-- Tarjeta Principal: Saldo Restante / Balance del Piso -->
-                    <div class="summary-card piso-balance-card" id="piso-balance-card">
-                        <div class="total-content">
-                            <span class="card-label">Saldo Restante de la Cuenta</span>
-                            <span class="card-amount" id="piso-difference">0,00 €</span>
-                            <span class="piso-balance-status" id="piso-balance-status">Equilibrado</span>
-                        </div>
-                        <div class="total-icon" aria-hidden="true">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                                <line x1="2" y1="10" x2="22" y2="10"></line>
-                            </svg>
-                        </div>
-                    </div>
-
-                    <!-- Tarjetas Totales: Total Gastado vs Total Ingresado -->
-                    <div class="summary-row">
-                        <div class="summary-card expense">
-                            <div class="card-indicator expense-indicator"></div>
-                            <span class="card-label">Total Gastado</span>
-                            <span class="card-amount" id="piso-total-expense">0,00 €</span>
-                        </div>
-                        <div class="summary-card income">
-                            <div class="card-indicator income-indicator"></div>
-                            <span class="card-label">Total Ingresado</span>
-                            <span class="card-amount" id="piso-total-income">0,00 €</span>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Formulario Simplificado: Añadir Movimiento al Piso (Fecha, Concepto, Importe y Tipo) -->
+                <!-- 1. ARRIBA: Botón y Formulario de nuevo movimiento con Entrada Rápida y Micrófono -->
                 <section class="form-section">
                     <button type="button" class="btn btn-toggle-form piso-toggle" id="piso-btn-toggle-form" aria-expanded="true" aria-controls="piso-form-content-wrapper">
                         <span class="btn-toggle-content">
@@ -400,6 +354,30 @@
                     </button>
 
                     <div id="piso-form-content-wrapper" class="form-collapsible">
+                        <!-- Entrada Rápida del Piso (Voz o Texto) -->
+                        <div class="quick-entry-box">
+                            <label for="piso-quick-entry-input" class="quick-entry-label piso-quick-label">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                </svg>
+                                Entrada rápida (ej. "compra comida 45.20" o "factura luz 60")
+                            </label>
+                            <div class="quick-entry-row">
+                                <input type="text" id="piso-quick-entry-input" placeholder="Escribe o pulsa el micro..." autocomplete="off">
+                                <button type="button" class="btn-icon-quick" id="piso-btn-speech" title="Dictar por voz para el piso" aria-label="Dictar por voz para el piso">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                        <line x1="12" y1="19" x2="12" y2="22"></line>
+                                        <line x1="8" y1="22" x2="16" y2="22"></line>
+                                    </svg>
+                                </button>
+                                <button type="button" class="btn btn-quick-load piso-btn-quick" id="piso-btn-quick-load">
+                                    Cargar
+                                </button>
+                            </div>
+                        </div>
+
                         <form id="piso-form" class="expense-form" autocomplete="off">
                             <div class="form-group">
                                 <label for="piso-type">Tipo de Movimiento</label>
@@ -411,7 +389,7 @@
 
                             <div class="form-group">
                                 <label for="piso-concept">Concepto</label>
-                                <input type="text" id="piso-concept" placeholder="Ej. Mercadona, Luz, WiFi, Aportación mensual..." required maxlength="60">
+                                <input type="text" id="piso-concept" placeholder="Ej. Compra comida, Factura luz, Alquiler..." required maxlength="60">
                             </div>
 
                             <div class="form-row">
@@ -436,7 +414,111 @@
                     </div>
                 </section>
 
-                <!-- Listado Simplificado de Movimientos del Piso -->
+                <!-- 2. DEBAJO DEL FORMULARIO: Resumen Financiero Global del Piso (Saldo, Gastado e Ingresado) -->
+                <section class="summary-section" aria-label="Resumen de saldo del piso">
+                    <div class="summary-card piso-balance-card" id="piso-balance-card">
+                        <div class="total-content">
+                            <span class="card-label">Saldo Restante de la Cuenta</span>
+                            <span class="card-amount" id="piso-difference">0,00 €</span>
+                            <span class="piso-balance-status" id="piso-balance-status">Equilibrado</span>
+                        </div>
+                        <div class="total-icon" aria-hidden="true">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                                <line x1="2" y1="10" x2="22" y2="10"></line>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="summary-row">
+                        <div class="summary-card expense">
+                            <div class="card-indicator expense-indicator"></div>
+                            <span class="card-label">Total Gastado</span>
+                            <span class="card-amount" id="piso-total-expense">0,00 €</span>
+                        </div>
+                        <div class="summary-card income">
+                            <div class="card-indicator income-indicator"></div>
+                            <span class="card-label">Total Ingresado</span>
+                            <span class="card-amount" id="piso-total-income">0,00 €</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. DEBAJO DEL SALDO: Gráfico de tarta con las categorías exactas del piso -->
+                <section class="chart-section" aria-label="Distribución de gastos del piso">
+                    <h2 class="section-title">Distribución Gastos del Piso</h2>
+                    <div class="chart-container">
+                        <div class="pie-chart-wrapper">
+                            <svg id="piso-pie-chart-svg" viewBox="0 0 160 160" class="pie-chart" aria-label="Gráfico de distribución del piso">
+                                <!-- Arcos generados por JS -->
+                            </svg>
+                            <div class="chart-center-label" id="piso-chart-center-label">
+                                <span class="chart-center-text" id="piso-chart-center-text">100%</span>
+                            </div>
+                        </div>
+                        <div class="chart-legend" id="piso-chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color piso-cat-ahorro"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Ahorro</span>
+                                    <span class="legend-percent" id="piso-ahorro-percent">0%</span>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color piso-cat-alquiler"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Alquiler</span>
+                                    <span class="legend-percent" id="piso-alquiler-percent">0%</span>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color piso-cat-gas"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Factura gas</span>
+                                    <span class="legend-percent" id="piso-gas-percent">0%</span>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color piso-cat-luz"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Factura luz</span>
+                                    <span class="legend-percent" id="piso-luz-percent">0%</span>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color piso-cat-agua"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Factura agua</span>
+                                    <span class="legend-percent" id="piso-agua-percent">0%</span>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color piso-cat-comida"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Compra comida</span>
+                                    <span class="legend-percent" id="piso-comida-percent">0%</span>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color piso-cat-utiles"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Compra útiles</span>
+                                    <span class="legend-percent" id="piso-utiles-percent">0%</span>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color piso-cat-otros"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Otros</span>
+                                    <span class="legend-percent" id="piso-otros-percent">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p id="piso-chart-empty-message" class="chart-empty-note hidden">Añade gastos en este mes para visualizar la distribución del piso.</p>
+                </section>
+
+                <!-- 4. ABAJO DEL TODO: Listado Simplificado de Movimientos del Piso -->
                 <section class="list-section">
                     <div class="list-header">
                         <div class="list-title-row">

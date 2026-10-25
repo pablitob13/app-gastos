@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tabContentPersonal.classList.remove('hidden');
             tabContentPiso.classList.add('hidden');
+            renderList();
         } else {
             tabBtnPiso.classList.add('active');
             tabBtnPiso.setAttribute('aria-selected', 'true');
@@ -51,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
             tabContentPiso.classList.remove('hidden');
             tabContentPersonal.classList.add('hidden');
 
-            // Cargar datos del piso al cambiar a la pestaña
             fetchPisoRecords();
         }
     }
@@ -99,16 +99,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentMonthKey = `${currentYear}-${currentMonth}`;
 
     // ==========================================
-    // 1. PESTAÑA: MIS GASTOS (LOCALSTORAGE)
+    // 1. PESTAÑA: MIS GASTOS (LOCALSTORAGE PRIVADO)
     // ==========================================
     const STORAGE_KEY = 'monthly_expenses_app';
-    const DISMISSED_REMINDER_PREFIX = 'dismissed_reminder_';
 
     let expenses = [];
     let currentFilter = 'all';
 
     const reminderBanner = document.getElementById('monthly-reminder-banner');
-    const btnDismissReminder = document.getElementById('btn-dismiss-reminder');
+    const reminderPendingText = document.getElementById('reminder-pending-text');
 
     const btnToggleForm = document.getElementById('btn-toggle-form');
     const formContentWrapper = document.getElementById('form-content-wrapper');
@@ -116,7 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const conceptInput = document.getElementById('expense-concept');
     const amountInput = document.getElementById('expense-amount');
     const dateInput = document.getElementById('expense-date');
-    const typeSelect = document.getElementById('expense-type');
     const quickEntryInput = document.getElementById('quick-entry-input');
     const btnQuickLoad = document.getElementById('btn-quick-load');
     const btnSpeech = document.getElementById('btn-speech');
@@ -137,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const leisurePercentEl = document.getElementById('leisure-percent');
     const barsPercentEl = document.getElementById('bars-percent');
     const treatsPercentEl = document.getElementById('treats-percent');
-    const chartCenterText = document.querySelector('.chart-center-text');
+    const chartCenterText = document.querySelector('#chart-center-label .chart-center-text');
     const chartEmptyMessage = document.getElementById('chart-empty-message');
 
     const expenseListEl = document.getElementById('expense-list');
@@ -148,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnImportJsonTrigger = document.getElementById('btn-import-json-trigger');
     const jsonFileInput = document.getElementById('json-file-input');
 
+    // Palabras clave para Gastos Fijos
     const FIXED_KEYWORDS = [
         'alquiler', 'hipoteca', 'comunidad', 'piso', 'casa', 'luz', 'agua', 'gas',
         'internet', 'fibra', 'telefono', 'móvil', 'movil', 'cochera', 'garaje',
@@ -184,24 +183,55 @@ document.addEventListener('DOMContentLoaded', () => {
     monthFilterInput.value = currentMonthKey;
     resetDateField();
 
-    function checkMonthlyReminder() {
-        const dayOfMonth = todayDate.getDate();
-        const isStartOfMonth = dayOfMonth >= 1 && dayOfMonth <= 5;
-        const dismissalKey = `${DISMISSED_REMINDER_PREFIX}${currentMonthKey}`;
-        const isDismissed = localStorage.getItem(dismissalKey) === 'true';
-
-        if (isStartOfMonth && !isDismissed) {
-            reminderBanner.classList.remove('hidden');
-        } else {
-            reminderBanner.classList.add('hidden');
-        }
+    // Detección automática de tipo de gasto (Fijo vs Personal)
+    function detectExpenseType(text) {
+        if (!text) return 'personal';
+        const normalized = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const isFixed = FIXED_KEYWORDS.some(kw => normalized.includes(kw));
+        return isFixed ? 'fijo' : 'personal';
     }
 
-    btnDismissReminder.addEventListener('click', () => {
-        const dismissalKey = `${DISMISSED_REMINDER_PREFIX}${currentMonthKey}`;
-        localStorage.setItem(dismissalKey, 'true');
-        reminderBanner.classList.add('hidden');
-    });
+    // Comprobación de aviso mensual ('PAGAR PISO Y COCHERA')
+    function checkMonthlyReminder() {
+        if (!reminderBanner) return;
+
+        // Comprueba si hoy es día 1 del mes en curso (o posterior dentro del mismo mes)
+        const todayDay = todayDate.getDate();
+        const isEligibleDay = todayDay >= 1;
+
+        if (!isEligibleDay) {
+            reminderBanner.classList.add('hidden');
+            return;
+        }
+
+        // Buscar gastos del mes actual en curso (currentMonthKey)
+        const currentMonthExpenses = expenses.filter(item => item.date && item.date.startsWith(currentMonthKey));
+
+        let hasPiso = false;
+        let hasCochera = false;
+
+        currentMonthExpenses.forEach(item => {
+            const normalized = (item.concept || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (normalized.includes('piso') || normalized.includes('alquiler')) {
+                hasPiso = true;
+            }
+            if (normalized.includes('cochera') || normalized.includes('garaje') || normalized.includes('parking')) {
+                hasCochera = true;
+            }
+        });
+
+        // Si ambos están registrados, el aviso desaparece
+        if (hasPiso && hasCochera) {
+            reminderBanner.classList.add('hidden');
+        } else {
+            const missing = [];
+            if (!hasPiso) missing.push('Piso (o alquiler)');
+            if (!hasCochera) missing.push('Cochera');
+
+            reminderPendingText.textContent = `Pendiente este mes: ${missing.join(' y ')}.`;
+            reminderBanner.classList.remove('hidden');
+        }
+    }
 
     btnToggleForm.addEventListener('click', () => {
         const isCollapsed = formContentWrapper.classList.toggle('collapsed');
@@ -211,12 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
             quickEntryInput.focus();
         }
     });
-
-    function detectExpenseType(text) {
-        const normalized = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const isFixed = FIXED_KEYWORDS.some(kw => normalized.includes(kw));
-        return isFixed ? 'fijo' : 'personal';
-    }
 
     function classifySubcategory(expense) {
         const text = (expense.concept || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -240,11 +264,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'caprichos';
     }
 
-    function parseQuickEntry(input) {
-        const trimmed = input.trim();
+    // Parser universal para texto o dictado por voz ("12.50 cena" o "alquiler 600")
+    function parseExpenseInput(rawText) {
+        const trimmed = (rawText || '').trim();
         if (!trimmed) return null;
 
         const sanitized = trimmed.replace(/€/g, '').replace(/\$/g, '');
+        // Buscar patrón numérico (admite decimales con coma o punto)
         const amountRegex = /(\d+(?:[.,]\d{1,2})?)/;
         const match = sanitized.match(amountRegex);
 
@@ -263,18 +289,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         conceptText = conceptText.charAt(0).toUpperCase() + conceptText.slice(1);
-        const autoType = detectExpenseType(conceptText);
 
         return {
             amount: numericAmount,
-            concept: conceptText,
-            type: autoType
+            concept: conceptText
         };
     }
 
     function applyQuickEntry() {
         const val = quickEntryInput.value;
-        const parsed = parseQuickEntry(val);
+        const parsed = parseExpenseInput(val);
         if (!parsed) {
             alert('Introduce al menos un importe y concepto. Ej: "12.50 cena" o "alquiler 600"');
             return;
@@ -282,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         conceptInput.value = parsed.concept;
         amountInput.value = parsed.amount.toFixed(2);
-        typeSelect.value = parsed.type;
         resetDateField();
 
         if (formContentWrapper.classList.contains('collapsed')) {
@@ -303,6 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Soporte Web Speech API para Mis Gastos
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
@@ -365,6 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveExpenses() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+        checkMonthlyReminder();
     }
 
     function getExpensesForSelectedMonth() {
@@ -474,13 +499,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const amount = parseFloat(item.amount) || 0;
             total += amount;
 
-            if (item.type === 'fijo') {
+            // Asegurar tipo detectado
+            const type = item.type || detectExpenseType(item.concept);
+            if (type === 'fijo') {
                 totalFixed += amount;
             } else {
                 totalPersonal += amount;
             }
 
-            const subcategory = classifySubcategory(item);
+            const subcategory = classifySubcategory({ ...item, type });
             if (breakdown[subcategory] !== undefined) {
                 breakdown[subcategory] += amount;
             }
@@ -496,10 +523,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderList() {
         const monthExpenses = getExpensesForSelectedMonth();
         updateSummary(monthExpenses);
+        checkMonthlyReminder();
 
         let displayList = monthExpenses;
         if (currentFilter !== 'all') {
-            displayList = displayList.filter(item => item.type === currentFilter);
+            displayList = displayList.filter(item => {
+                const type = item.type || detectExpenseType(item.concept);
+                return type === currentFilter;
+            });
         }
 
         displayList.sort((a, b) => {
@@ -519,8 +550,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.className = 'expense-item';
 
-                const typeLabel = expense.type === 'fijo' ? 'Fijo' : 'Personal';
-                const badgeClass = expense.type === 'fijo' ? 'badge-fijo' : 'badge-personal';
+                const type = expense.type || detectExpenseType(expense.concept);
+                const typeLabel = type === 'fijo' ? 'Fijo' : 'Personal';
+                const badgeClass = type === 'fijo' ? 'badge-fijo' : 'badge-personal';
 
                 li.innerHTML = `
                     <div class="expense-info">
@@ -576,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
             item.id,
             item.date,
             `"${(item.concept || '').replace(/"/g, '""')}"`,
-            item.type === 'fijo' ? 'Fijo' : 'Personal',
+            (item.type || detectExpenseType(item.concept)) === 'fijo' ? 'Fijo' : 'Personal',
             item.amount.toString().replace('.', ',')
         ]);
 
@@ -661,12 +693,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         existingIds.add(id);
 
+                        const concept = String(item.concept).trim();
                         expenses.push({
                             id: id,
-                            concept: String(item.concept).trim(),
+                            concept: concept,
                             amount: Math.abs(parseFloat(item.amount)),
                             date: item.date,
-                            type: item.type === 'fijo' ? 'fijo' : 'personal'
+                            type: item.type || detectExpenseType(concept)
                         });
                         addedCount++;
                     }
@@ -684,17 +717,20 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsText(file);
     });
 
+    // Envío del formulario manual (Mis Gastos)
     form.addEventListener('submit', (e) => {
         e.preventDefault();
 
         const concept = conceptInput.value.trim();
         const amount = parseFloat(amountInput.value);
         const date = dateInput.value;
-        const type = typeSelect.value;
 
         if (!concept || isNaN(amount) || amount <= 0 || !date) {
             return;
         }
+
+        // Tipo asignado automáticamente
+        const type = detectExpenseType(concept);
 
         const newExpense = {
             id: Date.now(),
@@ -744,13 +780,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList();
     });
 
-    conceptInput.addEventListener('input', () => {
-        const detected = detectExpenseType(conceptInput.value);
-        typeSelect.value = detected;
-    });
-
     // ==========================================
-    // 2. PESTAÑA: GASTOS PISO (CAJA COMÚN SUPABASE)
+    // 2. PESTAÑA: GASTOS PISO (COMPARTIDO SUPABASE)
     // ==========================================
     let pisoRecords = [];
     let currentPisoFilter = 'all';
@@ -773,6 +804,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const pisoAmountInput = document.getElementById('piso-amount');
     const pisoDateInput = document.getElementById('piso-date');
 
+    const pisoQuickEntryInput = document.getElementById('piso-quick-entry-input');
+    const pisoBtnSpeech = document.getElementById('piso-btn-speech');
+    const pisoBtnQuickLoad = document.getElementById('piso-btn-quick-load');
+
+    const pisoPieChartSvg = document.getElementById('piso-pie-chart-svg');
+    const pisoChartCenterText = document.getElementById('piso-chart-center-text');
+    const pisoChartEmptyMessage = document.getElementById('piso-chart-empty-message');
+
+    // Porcentajes de la leyenda del piso
+    const pisoAhorroPercentEl = document.getElementById('piso-ahorro-percent');
+    const pisoAlquilerPercentEl = document.getElementById('piso-alquiler-percent');
+    const pisoGasPercentEl = document.getElementById('piso-gas-percent');
+    const pisoLuzPercentEl = document.getElementById('piso-luz-percent');
+    const pisoAguaPercentEl = document.getElementById('piso-agua-percent');
+    const pisoComidaPercentEl = document.getElementById('piso-comida-percent');
+    const pisoUtilesPercentEl = document.getElementById('piso-utiles-percent');
+    const pisoOtrosPercentEl = document.getElementById('piso-otros-percent');
+
     const pisoExpenseListEl = document.getElementById('piso-expense-list');
     const pisoEmptyStateEl = document.getElementById('piso-empty-state');
     const pisoFilterPills = document.querySelectorAll('[data-piso-filter]');
@@ -786,9 +835,140 @@ document.addEventListener('DOMContentLoaded', () => {
         pisoBtnToggleForm.classList.toggle('collapsed', isCollapsed);
         pisoBtnToggleForm.setAttribute('aria-expanded', !isCollapsed);
         if (!isCollapsed) {
-            pisoConceptInput.focus();
+            pisoQuickEntryInput.focus();
         }
     });
+
+    // Clasificación automática de categorías exactas del piso
+    function classifyPisoCategory(concept) {
+        const text = (concept || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        if (text.includes('ahorro') || text.includes('fondo') || text.includes('reserva')) {
+            return 'ahorro';
+        }
+        if (text.includes('alquiler') || text.includes('piso') || text.includes('renta') || text.includes('hipoteca')) {
+            return 'alquiler';
+        }
+        if (text.includes('gas') || text.includes('butano') || text.includes('calefaccion')) {
+            return 'factura gas';
+        }
+        if (text.includes('luz') || text.includes('electricidad') || text.includes('iberdrola') || text.includes('endesa')) {
+            return 'factura luz';
+        }
+        if (text.includes('agua') || text.includes('aqualia') || text.includes('canal')) {
+            return 'factura agua';
+        }
+        if (
+            text.includes('comida') || text.includes('mercadona') || text.includes('super') ||
+            text.includes('supermercado') || text.includes('compra') || text.includes('dia') ||
+            text.includes('carrefour') || text.includes('lidl') || text.includes('fruteria') ||
+            text.includes('carniceria')
+        ) {
+            // Distinguir compra de comida vs compra de útiles
+            if (text.includes('util') || text.includes('limpieza') || text.includes('fregona') || text.includes('lejia') || text.includes('papel')) {
+                return 'compra utiles';
+            }
+            return 'compra comida';
+        }
+        if (
+            text.includes('util') || text.includes('útil') || text.includes('limpieza') ||
+            text.includes('fregona') || text.includes('estropajo') || text.includes('detergente') ||
+            text.includes('suavizante') || text.includes('lejia') || text.includes('papel higienico') ||
+            text.includes('bazar') || text.includes('ferreteria')
+        ) {
+            return 'compra utiles';
+        }
+
+        return 'otros';
+    }
+
+    // Entrada rápida del piso (manual o voz)
+    function applyPisoQuickEntry() {
+        const val = pisoQuickEntryInput.value;
+        const parsed = parseExpenseInput(val);
+        if (!parsed) {
+            alert('Introduce al menos un concepto e importe. Ej: "compra comida 45.20" o "factura luz 60"');
+            return;
+        }
+
+        pisoConceptInput.value = parsed.concept;
+        pisoAmountInput.value = parsed.amount.toFixed(2);
+        pisoDateInput.value = getTodayDateString();
+
+        // Autodetección de si es ingreso o gasto
+        const lowerConcept = parsed.concept.toLowerCase();
+        if (lowerConcept.includes('ingreso') || lowerConcept.includes('aportacion') || lowerConcept.includes('transferencia')) {
+            pisoTypeSelect.value = 'ingreso';
+        } else {
+            pisoTypeSelect.value = 'gasto';
+        }
+
+        if (pisoFormContentWrapper.classList.contains('collapsed')) {
+            pisoFormContentWrapper.classList.remove('collapsed');
+            pisoBtnToggleForm.classList.remove('collapsed');
+            pisoBtnToggleForm.setAttribute('aria-expanded', 'true');
+        }
+
+        pisoAmountInput.focus();
+        pisoQuickEntryInput.value = '';
+    }
+
+    pisoBtnQuickLoad.addEventListener('click', applyPisoQuickEntry);
+    pisoQuickEntryInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            applyPisoQuickEntry();
+        }
+    });
+
+    // Micrófono por voz para Gastos Piso
+    if (SpeechRecognition) {
+        const pisoRecognition = new SpeechRecognition();
+        pisoRecognition.lang = 'es-ES';
+        pisoRecognition.continuous = false;
+        pisoRecognition.interimResults = false;
+
+        let isListeningPiso = false;
+
+        pisoRecognition.onstart = () => {
+            isListeningPiso = true;
+            pisoBtnSpeech.classList.add('recording');
+            pisoQuickEntryInput.placeholder = 'Escuchando... Di ej. "compra comida 45.20"';
+        };
+
+        pisoRecognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            pisoQuickEntryInput.value = transcript;
+            applyPisoQuickEntry();
+        };
+
+        pisoRecognition.onerror = (event) => {
+            console.warn('Error en micrófono de gastos piso:', event.error);
+            isListeningPiso = false;
+            pisoBtnSpeech.classList.remove('recording');
+            pisoQuickEntryInput.placeholder = 'Escribe o pulsa el micro...';
+        };
+
+        pisoRecognition.onend = () => {
+            isListeningPiso = false;
+            pisoBtnSpeech.classList.remove('recording');
+            pisoQuickEntryInput.placeholder = 'Escribe o pulsa el micro...';
+        };
+
+        pisoBtnSpeech.addEventListener('click', () => {
+            if (isListeningPiso) {
+                pisoRecognition.stop();
+            } else {
+                try {
+                    pisoRecognition.start();
+                } catch (e) {
+                    console.error('Error al iniciar speech piso:', e);
+                }
+            }
+        });
+    } else {
+        pisoBtnSpeech.style.display = 'none';
+    }
 
     function changePisoMonth(offset) {
         const [yearStr, monthStr] = pisoMonthFilterInput.value.split('-');
@@ -813,9 +993,109 @@ document.addEventListener('DOMContentLoaded', () => {
         return pisoRecords.filter(item => item.fecha && item.fecha.startsWith(selectedMonth));
     }
 
+    // Actualización del Gráfico de Tarta del Piso (las 8 categorías)
+    function updatePisoPieChart(totals, totalExpenses) {
+        const radius = 60;
+        const circumference = 2 * Math.PI * radius;
+        const cx = 80;
+        const cy = 80;
+        const strokeWidth = 24;
+
+        pisoPieChartSvg.innerHTML = '';
+
+        if (totalExpenses === 0) {
+            const baseCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            baseCircle.setAttribute('cx', cx);
+            baseCircle.setAttribute('cy', cy);
+            baseCircle.setAttribute('r', radius);
+            baseCircle.setAttribute('fill', 'none');
+            baseCircle.setAttribute('stroke', '#273552');
+            baseCircle.setAttribute('stroke-width', strokeWidth);
+            pisoPieChartSvg.appendChild(baseCircle);
+
+            pisoAhorroPercentEl.textContent = '0%';
+            pisoAlquilerPercentEl.textContent = '0%';
+            pisoGasPercentEl.textContent = '0%';
+            pisoLuzPercentEl.textContent = '0%';
+            pisoAguaPercentEl.textContent = '0%';
+            pisoComidaPercentEl.textContent = '0%';
+            pisoUtilesPercentEl.textContent = '0%';
+            pisoOtrosPercentEl.textContent = '0%';
+            pisoChartCenterText.textContent = '0 €';
+            pisoChartEmptyMessage.classList.remove('hidden');
+            return;
+        }
+
+        pisoChartEmptyMessage.classList.add('hidden');
+
+        const ahorroPct = Math.round((totals['ahorro'] / totalExpenses) * 100);
+        const alquilerPct = Math.round((totals['alquiler'] / totalExpenses) * 100);
+        const gasPct = Math.round((totals['factura gas'] / totalExpenses) * 100);
+        const luzPct = Math.round((totals['factura luz'] / totalExpenses) * 100);
+        const aguaPct = Math.round((totals['factura agua'] / totalExpenses) * 100);
+        const comidaPct = Math.round((totals['compra comida'] / totalExpenses) * 100);
+        const utilesPct = Math.round((totals['compra utiles'] / totalExpenses) * 100);
+        const otrosPct = Math.round((totals['otros'] / totalExpenses) * 100);
+
+        pisoAhorroPercentEl.textContent = `${ahorroPct}%`;
+        pisoAlquilerPercentEl.textContent = `${alquilerPct}%`;
+        pisoGasPercentEl.textContent = `${gasPct}%`;
+        pisoLuzPercentEl.textContent = `${luzPct}%`;
+        pisoAguaPercentEl.textContent = `${aguaPct}%`;
+        pisoComidaPercentEl.textContent = `${comidaPct}%`;
+        pisoUtilesPercentEl.textContent = `${utilesPct}%`;
+        pisoOtrosPercentEl.textContent = `${otrosPct}%`;
+
+        pisoChartCenterText.textContent = formatCurrency(totalExpenses);
+
+        const segments = [
+            { key: 'ahorro', amount: totals['ahorro'], color: '#10b981' },
+            { key: 'alquiler', amount: totals['alquiler'], color: '#6366f1' },
+            { key: 'factura gas', amount: totals['factura gas'], color: '#f97316' },
+            { key: 'factura luz', amount: totals['factura luz'], color: '#eab308' },
+            { key: 'factura agua', amount: totals['factura agua'], color: '#06b6d4' },
+            { key: 'compra comida', amount: totals['compra comida'], color: '#ec4899' },
+            { key: 'compra utiles', amount: totals['compra utiles'], color: '#8b5cf6' },
+            { key: 'otros', amount: totals['otros'], color: '#64748b' }
+        ];
+
+        let accumulatedOffset = 0;
+
+        segments.forEach(segment => {
+            if (segment.amount > 0) {
+                const ratio = segment.amount / totalExpenses;
+                const dashLength = ratio * circumference;
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', cx);
+                circle.setAttribute('cy', cy);
+                circle.setAttribute('r', radius);
+                circle.setAttribute('fill', 'none');
+                circle.setAttribute('stroke', segment.color);
+                circle.setAttribute('stroke-width', strokeWidth);
+                circle.setAttribute('stroke-dasharray', `${dashLength} ${circumference}`);
+                circle.setAttribute('stroke-dashoffset', `${-accumulatedOffset}`);
+                pisoPieChartSvg.appendChild(circle);
+
+                accumulatedOffset += dashLength;
+            }
+        });
+    }
+
     function updatePisoSummary(records) {
         let totalIncome = 0;
         let totalExpense = 0;
+
+        const pisoBreakdown = {
+            'ahorro': 0,
+            'alquiler': 0,
+            'factura gas': 0,
+            'factura luz': 0,
+            'factura agua': 0,
+            'compra comida': 0,
+            'compra utiles': 0,
+            'otros': 0
+        };
 
         records.forEach(item => {
             const amount = parseFloat(item.importe) || 0;
@@ -825,6 +1105,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 totalIncome += amount;
             } else {
                 totalExpense += amount;
+                const category = classifyPisoCategory(item.concepto);
+                pisoBreakdown[category] += amount;
             }
         });
 
@@ -844,6 +1126,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             pisoBalanceStatusEl.textContent = 'Cuenta en 0 €';
         }
+
+        updatePisoPieChart(pisoBreakdown, totalExpense);
     }
 
     function renderPisoList() {
@@ -946,7 +1230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Configurar suscripción Realtime en Supabase para gastos_piso
+    // Configurar suscripción Realtime en Supabase
     function setupRealtimeSubscription() {
         if (!supabaseClient) return;
 
@@ -991,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Enviar nuevo movimiento a Supabase
+    // Guardar nuevo registro del piso en Supabase
     pisoForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -1032,13 +1316,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Sincronizar mes visible
             const recordMonth = fecha.substring(0, 7);
             if (pisoMonthFilterInput.value !== recordMonth) {
                 pisoMonthFilterInput.value = recordMonth;
             }
 
-            // Si vino el registro insertado y realtime aún no lo puso
             if (data && data[0]) {
                 const inserted = {
                     id: data[0].id,
@@ -1055,6 +1337,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             pisoConceptInput.value = '';
             pisoAmountInput.value = '';
+            pisoQuickEntryInput.value = '';
             pisoDateInput.value = getTodayDateString();
             pisoConceptInput.focus();
 
@@ -1067,7 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Eliminar registro de gastos_piso en Supabase
+    // Eliminar registro del piso en Supabase
     pisoExpenseListEl.addEventListener('click', async (e) => {
         const deleteButton = e.target.closest('.piso-btn-delete');
         if (!deleteButton) return;
@@ -1103,7 +1386,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Filtros de la pestaña Gastos Piso
     pisoFilterPills.forEach(pill => {
         pill.addEventListener('click', () => {
             pisoFilterPills.forEach(p => p.classList.remove('active'));
@@ -1114,13 +1396,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // 3. INICIALIZACIÓN GENERAL
+    // 3. INICIALIZACIÓN
     // ==========================================
-    checkMonthlyReminder();
     loadExpenses();
     renderList();
+    checkMonthlyReminder();
 
-    // Iniciar Supabase y Realtime en segundo plano
     if (supabaseClient) {
         setupRealtimeSubscription();
         fetchPisoRecords();
