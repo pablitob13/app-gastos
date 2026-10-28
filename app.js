@@ -1404,11 +1404,136 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // 3. INICIALIZACIÓN
+    // 3. CALCULADORA DE APORTACIÓN EQUITATIVA
+    // ==========================================
+    const CALC_STORAGE_KEY = 'calc_piso_salaries';
+
+    const btnToggleCalc = document.getElementById('btn-toggle-calc');
+    const calcContentWrapper = document.getElementById('calc-content-wrapper');
+
+    const calcTotalTargetInput = document.getElementById('calc-total-target');
+    const calcMyIncomeInput = document.getElementById('calc-my-income');
+    const calcPartnerIncomeInput = document.getElementById('calc-partner-income');
+
+    const calcMyAmountEl = document.getElementById('calc-my-amount');
+    const calcMyPercentEl = document.getElementById('calc-my-percent');
+    const calcPartnerAmountEl = document.getElementById('calc-partner-amount');
+    const calcPartnerPercentEl = document.getElementById('calc-partner-percent');
+    const btnCalcRegisterMine = document.getElementById('btn-calc-register-mine');
+
+    let currentCalculatedMyShare = 0;
+
+    btnToggleCalc.addEventListener('click', () => {
+        const isCollapsed = calcContentWrapper.classList.toggle('collapsed');
+        btnToggleCalc.classList.toggle('collapsed', isCollapsed);
+        btnToggleCalc.setAttribute('aria-expanded', !isCollapsed);
+    });
+
+    function loadSavedSalaries() {
+        try {
+            const saved = localStorage.getItem(CALC_STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.myIncome) calcMyIncomeInput.value = parsed.myIncome;
+                if (parsed.partnerIncome) calcPartnerIncomeInput.value = parsed.partnerIncome;
+                if (parsed.target) calcTotalTargetInput.value = parsed.target;
+            }
+        } catch (e) {
+            console.warn('Error al cargar sueldos de la calculadora:', e);
+        }
+    }
+
+    function saveSalaries() {
+        const myIncome = parseFloat(calcMyIncomeInput.value) || 0;
+        const partnerIncome = parseFloat(calcPartnerIncomeInput.value) || 0;
+        const target = parseFloat(calcTotalTargetInput.value) || 0;
+
+        try {
+            localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify({
+                myIncome: myIncome > 0 ? myIncome : '',
+                partnerIncome: partnerIncome > 0 ? partnerIncome : '',
+                target: target > 0 ? target : ''
+            }));
+        } catch (e) {
+            console.warn('Error al guardar sueldos en localStorage:', e);
+        }
+    }
+
+    function calculateEquitableShares() {
+        const totalTarget = Math.max(0, parseFloat(calcTotalTargetInput.value) || 0);
+        const myIncome = Math.max(0, parseFloat(calcMyIncomeInput.value) || 0);
+        const partnerIncome = Math.max(0, parseFloat(calcPartnerIncomeInput.value) || 0);
+
+        saveSalaries();
+
+        const totalIncome = myIncome + partnerIncome;
+
+        if (totalIncome <= 0 || totalTarget <= 0) {
+            currentCalculatedMyShare = 0;
+            calcMyAmountEl.textContent = '0,00 €';
+            calcMyPercentEl.textContent = '0.0% del total';
+            calcPartnerAmountEl.textContent = '0,00 €';
+            calcPartnerPercentEl.textContent = '0.0% del total';
+            return;
+        }
+
+        const myRatio = myIncome / totalIncome;
+        const partnerRatio = partnerIncome / totalIncome;
+
+        const myShare = +(totalTarget * myRatio).toFixed(2);
+        // Garantizar que la suma de ambas coincida con el objetivo
+        const partnerShare = +(totalTarget - myShare).toFixed(2);
+
+        currentCalculatedMyShare = myShare;
+
+        const myPctDisplay = (myRatio * 100).toFixed(1);
+        const partnerPctDisplay = (partnerRatio * 100).toFixed(1);
+
+        calcMyAmountEl.textContent = formatCurrency(myShare);
+        calcMyPercentEl.textContent = `${myPctDisplay}% del total`;
+
+        calcPartnerAmountEl.textContent = formatCurrency(partnerShare);
+        calcPartnerPercentEl.textContent = `${partnerPctDisplay}% del total`;
+    }
+
+    calcTotalTargetInput.addEventListener('input', calculateEquitableShares);
+    calcMyIncomeInput.addEventListener('input', calculateEquitableShares);
+    calcPartnerIncomeInput.addEventListener('input', calculateEquitableShares);
+
+    btnCalcRegisterMine.addEventListener('click', () => {
+        if (currentCalculatedMyShare <= 0) {
+            alert('Introduce los datos del total e ingresos para calcular tu aportación primero.');
+            calcTotalTargetInput.focus();
+            return;
+        }
+
+        // Abrir el formulario del piso si está colapsado
+        if (pisoFormContentWrapper.classList.contains('collapsed')) {
+            pisoFormContentWrapper.classList.remove('collapsed');
+            pisoBtnToggleForm.classList.remove('collapsed');
+            pisoBtnToggleForm.setAttribute('aria-expanded', 'true');
+        }
+
+        // Rellenar automáticamente los campos
+        pisoTypeSelect.value = 'ingreso';
+        pisoConceptInput.value = 'Aportación equitativa piso';
+        pisoAmountInput.value = currentCalculatedMyShare.toFixed(2);
+        pisoDateInput.value = getTodayDateString();
+
+        // Scroll suave hacia el formulario del piso
+        pisoForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        pisoAmountInput.focus();
+    });
+
+    // ==========================================
+    // 4. INICIALIZACIÓN
     // ==========================================
     loadExpenses();
     renderList();
     checkMonthlyReminder();
+
+    loadSavedSalaries();
+    calculateEquitableShares();
 
     if (supabaseClient) {
         setupRealtimeSubscription();

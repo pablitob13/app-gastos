@@ -518,7 +518,7 @@
                     <p id="piso-chart-empty-message" class="chart-empty-note hidden">Añade gastos en este mes para visualizar la distribución del piso.</p>
                 </section>
 
-                <!-- 4. ABAJO DEL TODO: Listado Simplificado de Movimientos del Piso -->
+                <!-- 4. ABAJO: Listado de Movimientos del Piso -->
                 <section class="list-section">
                     <div class="list-header">
                         <div class="list-title-row">
@@ -543,6 +543,64 @@
                             <line x1="12" y1="16" x2="12.01" y2="16"></line>
                         </svg>
                         <p>No hay registros para este mes en el piso.</p>
+                    </div>
+                </section>
+
+                <!-- 5. ABAJO DEL TODO: Calculadora de Reparto Proporcional -->
+                <section class="calc-section" aria-label="Calculadora de aportación equitativa">
+                    <div class="calc-card">
+                        <button type="button" class="calc-header-toggle" id="btn-toggle-calc" aria-expanded="true" aria-controls="calc-content-wrapper">
+                            <div class="calc-title-box">
+                                <span class="calc-icon" aria-hidden="true">⚖️</span>
+                                <div>
+                                    <h2 class="section-title">Calculadora de Aportación Equitativa</h2>
+                                    <p class="calc-subtitle">Reparto proporcional según nóminas</p>
+                                </div>
+                            </div>
+                            <svg class="chevron-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+
+                        <div id="calc-content-wrapper" class="calc-collapsible">
+                            <div class="calc-form">
+                                <div class="form-group">
+                                    <label for="calc-total-target">Total a ingresar al piso (€)</label>
+                                    <input type="number" id="calc-total-target" step="0.01" min="0" placeholder="Ej. 500" autocomplete="off">
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="calc-my-income">Mi nómina / ingreso (€)</label>
+                                        <input type="number" id="calc-my-income" step="0.01" min="0" placeholder="Ej. 1000" autocomplete="off">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="calc-partner-income">Su nómina / ingreso (€)</label>
+                                        <input type="number" id="calc-partner-income" step="0.01" min="0" placeholder="Ej. 2000" autocomplete="off">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel de Resultados Proporcionales -->
+                            <div class="calc-results-grid">
+                                <div class="calc-result-box my-share">
+                                    <span class="calc-result-label">Tu aportación</span>
+                                    <span class="calc-result-amount" id="calc-my-amount">0,00 €</span>
+                                    <span class="calc-percent" id="calc-my-percent">0.0% del total</span>
+                                    <button type="button" class="btn btn-calc-register" id="btn-calc-register-mine" title="Cargar este importe como mi ingreso en el piso">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                        Registrar mi ingreso
+                                    </button>
+                                </div>
+                                <div class="calc-result-box partner-share">
+                                    <span class="calc-result-label">Su aportación</span>
+                                    <span class="calc-result-amount" id="calc-partner-amount">0,00 €</span>
+                                    <span class="calc-percent" id="calc-partner-percent">0.0% del total</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
             </div>

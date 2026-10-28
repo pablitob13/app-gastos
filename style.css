@@ -361,7 +361,8 @@ body {
     transition: transform 0.25s ease;
 }
 
-.btn-toggle-form.collapsed .chevron-icon {
+.btn-toggle-form.collapsed .chevron-icon,
+.calc-header-toggle.collapsed .chevron-icon {
     transform: rotate(-90deg);
 }
 
@@ -654,7 +655,8 @@ select option {
 /* Gráfico de Tarta */
 .chart-section,
 .list-section,
-.backup-section {
+.backup-section,
+.calc-section {
     background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: 1.25rem;
@@ -1062,6 +1064,162 @@ select option {
 
 .empty-icon {
     color: var(--text-muted);
+}
+
+/* ========================================================= */
+/* CALCULADORA DE APORTACIÓN EQUITATIVA                      */
+/* ========================================================= */
+.calc-section {
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #312e81;
+    background: linear-gradient(180deg, #131b31 0%, #0d1424 100%);
+}
+
+.calc-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.calc-header-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.18));
+    border: none;
+    border-bottom: 1px solid #273552;
+    padding: 1.05rem 1.25rem;
+    color: #ffffff;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.2s ease;
+}
+
+.calc-header-toggle:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(139, 92, 246, 0.25));
+}
+
+.calc-title-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.calc-icon {
+    font-size: 1.45rem;
+    line-height: 1;
+}
+
+.calc-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 0.15rem;
+}
+
+.calc-collapsible {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    transition: all 0.2s ease;
+}
+
+.calc-collapsible.collapsed {
+    display: none;
+}
+
+.calc-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.calc-results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+}
+
+.calc-result-box {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.95rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+}
+
+.calc-result-box.my-share {
+    border-color: rgba(56, 189, 248, 0.4);
+    background: linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, rgba(15, 22, 41, 0.9) 100%);
+}
+
+.calc-result-box.partner-share {
+    border-color: rgba(139, 92, 246, 0.4);
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.08) 0%, rgba(15, 22, 41, 0.9) 100%);
+}
+
+.calc-result-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    margin-bottom: 0.3rem;
+}
+
+.my-share .calc-result-label {
+    color: #38bdf8;
+}
+
+.partner-share .calc-result-label {
+    color: #c084fc;
+}
+
+.calc-result-amount {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    line-height: 1.2;
+}
+
+.calc-percent {
+    font-size: 0.775rem;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-top: 0.25rem;
+}
+
+.btn-calc-register {
+    margin-top: 0.85rem;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    transition: all 0.15s ease;
+    width: 100%;
+}
+
+.btn-calc-register:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.btn-calc-register:active {
+    transform: scale(0.97);
 }
 
 .hidden {
