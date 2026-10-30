@@ -130,11 +130,28 @@
                             </div>
                         </div>
 
-                        <!-- Formulario Habitual (Tipo de gasto automático) -->
+                        <!-- Formulario Habitual con Selector Explícito de Categoría -->
                         <form id="expense-form" class="expense-form" autocomplete="off">
                             <div class="form-group">
                                 <label for="expense-concept">Concepto</label>
                                 <input type="text" id="expense-concept" placeholder="Ej. Alquiler, Cochera, Supermercado..." required maxlength="60">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="expense-category">Categoría</label>
+                                <select id="expense-category" required>
+                                    <optgroup label="Gastos Fijos">
+                                        <option value="piso">Piso</option>
+                                        <option value="cochera">Cochera</option>
+                                        <option value="gasolina">Gasolina</option>
+                                    </optgroup>
+                                    <optgroup label="Gastos Variables / Personales">
+                                        <option value="deporte">Deporte</option>
+                                        <option value="ocio">Ocio</option>
+                                        <option value="bares">Bares</option>
+                                        <option value="caprichos">Caprichos</option>
+                                    </optgroup>
+                                </select>
                             </div>
 
                             <div class="form-row">
@@ -212,6 +229,13 @@
                                 <div class="legend-info">
                                     <span class="legend-name">Cochera</span>
                                     <span class="legend-percent" id="fixed-cochera-percent">0%</span>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color fixed-gasolina"></span>
+                                <div class="legend-info">
+                                    <span class="legend-name">Gasolina</span>
+                                    <span class="legend-percent" id="fixed-gasolina-percent">0%</span>
                                 </div>
                             </div>
                             <div class="legend-item">

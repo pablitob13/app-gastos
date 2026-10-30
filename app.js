@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const formContentWrapper = document.getElementById('form-content-wrapper');
     const form = document.getElementById('expense-form');
     const conceptInput = document.getElementById('expense-concept');
+    const categorySelect = document.getElementById('expense-category');
     const amountInput = document.getElementById('expense-amount');
     const dateInput = document.getElementById('expense-date');
     const quickEntryInput = document.getElementById('quick-entry-input');
@@ -131,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pieChartSvg = document.getElementById('pie-chart-svg');
     const fixedPisoPercentEl = document.getElementById('fixed-piso-percent');
     const fixedCocheraPercentEl = document.getElementById('fixed-cochera-percent');
+    const fixedGasolinaPercentEl = document.getElementById('fixed-gasolina-percent');
     const sportPercentEl = document.getElementById('sport-percent');
     const leisurePercentEl = document.getElementById('leisure-percent');
     const barsPercentEl = document.getElementById('bars-percent');
@@ -146,33 +148,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnImportJsonTrigger = document.getElementById('btn-import-json-trigger');
     const jsonFileInput = document.getElementById('json-file-input');
 
-    // Palabras clave exactas para Gastos Fijos (Piso y Cochera)
-    const FIXED_PISO_KEYWORDS = [
-        'piso', 'alquiler', 'renta'
-    ];
+    // Categorías válidas y mapeo directo a Tipo (Fijo vs Personal)
+    const FIXED_CATEGORIES = ['piso', 'cochera', 'gasolina'];
+    const PERSONAL_CATEGORIES = ['deporte', 'ocio', 'bares', 'caprichos'];
+    const ALL_CATEGORIES = [...FIXED_CATEGORIES, ...PERSONAL_CATEGORIES];
 
-    const FIXED_COCHERA_KEYWORDS = [
-        'cochera', 'parking', 'garaje', 'aparcar'
-    ];
+    function getTypeForCategory(cat) {
+        return FIXED_CATEGORIES.includes(cat) ? 'fijo' : 'personal';
+    }
 
-    // Palabras clave para Gastos Variables
-    const SPORT_KEYWORDS = [
-        'gym', 'gimnasio', 'deporte', 'padel', 'crossfit', 'pesas', 'piscina', 'futbol', 'running'
-    ];
+    function getNormalizedCategory(cat) {
+        if (!cat) return 'caprichos';
+        const cleaned = String(cat).toLowerCase().trim();
+        return ALL_CATEGORIES.includes(cleaned) ? cleaned : 'caprichos';
+    }
 
-    const BARS_KEYWORDS = [
-        'bar', 'cerveza', 'birra', 'cafe', 'tapas', 'restaurante', 'cana', 'copa',
-        'cervezas', 'canas', 'copas', 'almuerzo', 'desayuno', 'cena', 'comida', 'pizzeria', 'burger', 'chiringuito'
-    ];
-
-    const LEISURE_KEYWORDS = [
-        'cine', 'concierto', 'viaje', 'escapada', 'hotel', 'juego', 'fiesta', 'entradas',
-        'teatro', 'streaming', 'netflix', 'spotify', 'vuelo', 'tren', 'billete', 'museo', 'show'
-    ];
-
-    const TREATS_KEYWORDS = [
-        'ropa', 'compras', 'amazon', 'tecnologia', 'gadget'
-    ];
+    function getCategoryDisplayName(cat) {
+        switch (cat) {
+            case 'piso': return 'Piso';
+            case 'cochera': return 'Cochera';
+            case 'gasolina': return 'Gasolina';
+            case 'deporte': return 'Deporte';
+            case 'ocio': return 'Ocio';
+            case 'bares': return 'Bares';
+            case 'caprichos': return 'Caprichos';
+            default: return cat;
+        }
+    }
 
     function resetDateField() {
         dateInput.value = getTodayDateString();
@@ -181,79 +183,25 @@ document.addEventListener('DOMContentLoaded', () => {
     monthFilterInput.value = currentMonthKey;
     resetDateField();
 
-    // Inferencia automática de categoría y tipo (Fijo vs Personal)
-    function classifyPersonalExpense(concept) {
-        const text = (concept || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-        // 1. Gastos Fijos
-        if (FIXED_PISO_KEYWORDS.some(kw => text.includes(kw))) {
-            return { type: 'fijo', category: 'piso' };
-        }
-        if (FIXED_COCHERA_KEYWORDS.some(kw => text.includes(kw))) {
-            return { type: 'fijo', category: 'cochera' };
-        }
-
-        // 2. Gastos Variables
-        if (SPORT_KEYWORDS.some(kw => text.includes(kw))) {
-            return { type: 'personal', category: 'deporte' };
-        }
-        if (BARS_KEYWORDS.some(kw => text.includes(kw))) {
-            return { type: 'personal', category: 'bares' };
-        }
-        if (LEISURE_KEYWORDS.some(kw => text.includes(kw))) {
-            return { type: 'personal', category: 'ocio' };
-        }
-        // Caprichos si coincide o por defecto para cualquier concepto variable
-        return { type: 'personal', category: 'caprichos' };
-    }
-
-    function detectExpenseType(text) {
-        return classifyPersonalExpense(text).type;
-    }
-
-    function classifySubcategory(expense) {
-        const validCategories = ['piso', 'cochera', 'deporte', 'ocio', 'bares', 'caprichos'];
-        if (expense.category && validCategories.includes(expense.category)) {
-            return expense.category;
-        }
-        return classifyPersonalExpense(expense.concept).category;
-    }
-
     // Comprobación de aviso mensual ('PAGAR PISO Y COCHERA')
     function checkMonthlyReminder() {
         if (!reminderBanner) return;
 
-        const todayDay = todayDate.getDate();
-        const isEligibleDay = todayDay >= 1;
-
-        if (!isEligibleDay) {
-            reminderBanner.classList.add('hidden');
-            return;
-        }
-
         const currentMonthExpenses = expenses.filter(item => item.date && item.date.startsWith(currentMonthKey));
 
-        let hasPiso = false;
-        let hasCochera = false;
-
-        currentMonthExpenses.forEach(item => {
-            const cat = classifySubcategory(item);
-            if (cat === 'piso') {
-                hasPiso = true;
-            }
-            if (cat === 'cochera') {
-                hasCochera = true;
-            }
-        });
+        const hasPiso = currentMonthExpenses.some(item => getNormalizedCategory(item.category) === 'piso');
+        const hasCochera = currentMonthExpenses.some(item => getNormalizedCategory(item.category) === 'cochera');
 
         if (hasPiso && hasCochera) {
             reminderBanner.classList.add('hidden');
         } else {
             const missing = [];
-            if (!hasPiso) missing.push('Piso (o alquiler)');
+            if (!hasPiso) missing.push('Piso');
             if (!hasCochera) missing.push('Cochera');
 
-            reminderPendingText.textContent = `Pendiente este mes: ${missing.join(' y ')}.`;
+            if (reminderPendingText) {
+                reminderPendingText.textContent = `Pendiente este mes: ${missing.join(' y ')}.`;
+            }
             reminderBanner.classList.remove('hidden');
         }
     }
@@ -267,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Parser universal para texto o dictado por voz ("12.50 cena" o "alquiler 600")
+    // Parser universal para texto o dictado por voz (extrae únicamente importe y concepto sin inferir categorías)
     function parseExpenseInput(rawText) {
         const trimmed = (rawText || '').trim();
         if (!trimmed) return null;
@@ -316,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnToggleForm.setAttribute('aria-expanded', 'true');
         }
 
-        amountInput.focus();
+        categorySelect.focus();
         quickEntryInput.value = '';
     }
 
@@ -422,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (fixedPisoPercentEl) fixedPisoPercentEl.textContent = '0%';
             if (fixedCocheraPercentEl) fixedCocheraPercentEl.textContent = '0%';
+            if (fixedGasolinaPercentEl) fixedGasolinaPercentEl.textContent = '0%';
             if (sportPercentEl) sportPercentEl.textContent = '0%';
             if (leisurePercentEl) leisurePercentEl.textContent = '0%';
             if (barsPercentEl) barsPercentEl.textContent = '0%';
@@ -435,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pisoPct = Math.round(((totals.piso || 0) / grandTotal) * 100);
         const cocheraPct = Math.round(((totals.cochera || 0) / grandTotal) * 100);
+        const gasolinaPct = Math.round(((totals.gasolina || 0) / grandTotal) * 100);
         const sportPct = Math.round(((totals.deporte || 0) / grandTotal) * 100);
         const leisurePct = Math.round(((totals.ocio || 0) / grandTotal) * 100);
         const barsPct = Math.round(((totals.bares || 0) / grandTotal) * 100);
@@ -442,21 +392,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (fixedPisoPercentEl) fixedPisoPercentEl.textContent = `${pisoPct}%`;
         if (fixedCocheraPercentEl) fixedCocheraPercentEl.textContent = `${cocheraPct}%`;
+        if (fixedGasolinaPercentEl) fixedGasolinaPercentEl.textContent = `${gasolinaPct}%`;
         if (sportPercentEl) sportPercentEl.textContent = `${sportPct}%`;
         if (leisurePercentEl) leisurePercentEl.textContent = `${leisurePct}%`;
         if (barsPercentEl) barsPercentEl.textContent = `${barsPct}%`;
         if (treatsPercentEl) treatsPercentEl.textContent = `${treatsPct}%`;
 
-        const totalFixedSum = (totals.piso || 0) + (totals.cochera || 0);
+        const totalFixedSum = (totals.piso || 0) + (totals.cochera || 0) + (totals.gasolina || 0);
         const totalFixedPct = Math.round((totalFixedSum / grandTotal) * 100);
         if (chartCenterText) {
             chartCenterText.textContent = `${totalFixedPct}% F`;
         }
 
-        // Exactamente las 6 categorías solicitadas con paleta acorde a la interfaz
+        // Exactamente las 7 categorías asignadas con sus colores
         const segments = [
             { key: 'piso', amount: totals.piso || 0, color: '#6366f1' },       // Piso (Índigo)
             { key: 'cochera', amount: totals.cochera || 0, color: '#8b5cf6' }, // Cochera (Violeta)
+            { key: 'gasolina', amount: totals.gasolina || 0, color: '#f97316' },// Gasolina (Naranja)
             { key: 'deporte', amount: totals.deporte || 0, color: '#06b6d4' }, // Deporte (Cian)
             { key: 'ocio', amount: totals.ocio || 0, color: '#38bdf8' },       // Ocio (Azul cielo)
             { key: 'bares', amount: totals.bares || 0, color: '#f59e0b' },     // Bares (Ámbar)
@@ -494,6 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const breakdown = {
             piso: 0,
             cochera: 0,
+            gasolina: 0,
             deporte: 0,
             ocio: 0,
             bares: 0,
@@ -504,9 +457,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const amount = parseFloat(item.amount) || 0;
             total += amount;
 
-            const classification = classifyPersonalExpense(item.concept);
-            const type = item.type || classification.type;
-            const subcategory = classifySubcategory({ ...item, type });
+            const category = getNormalizedCategory(item.category);
+            const type = getTypeForCategory(category);
 
             if (type === 'fijo') {
                 totalFixed += amount;
@@ -514,11 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 totalPersonal += amount;
             }
 
-            if (breakdown[subcategory] !== undefined) {
-                breakdown[subcategory] += amount;
-            } else {
-                breakdown['caprichos'] += amount;
-            }
+            breakdown[category] = (breakdown[category] || 0) + amount;
         });
 
         totalAmountEl.textContent = formatCurrency(total);
@@ -536,7 +484,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let displayList = monthExpenses;
         if (currentFilter !== 'all') {
             displayList = displayList.filter(item => {
-                const type = item.type || detectExpenseType(item.concept);
+                const category = getNormalizedCategory(item.category);
+                const type = getTypeForCategory(category);
                 return type === currentFilter;
             });
         }
@@ -558,9 +507,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.className = 'expense-item';
 
-                const type = expense.type || detectExpenseType(expense.concept);
+                const category = getNormalizedCategory(expense.category);
+                const type = getTypeForCategory(category);
                 const typeLabel = type === 'fijo' ? 'Fijo' : 'Personal';
                 const badgeClass = type === 'fijo' ? 'badge-fijo' : 'badge-personal';
+                const categoryLabel = getCategoryDisplayName(category);
 
                 li.innerHTML = `
                     <div class="expense-info">
@@ -568,6 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="expense-meta">
                             <span>${formatDateDisplay(expense.date)}</span>
                             <span class="badge ${badgeClass}">${typeLabel}</span>
+                            <span class="badge badge-category">${categoryLabel}</span>
                         </div>
                     </div>
                     <div class="expense-right">
@@ -611,14 +563,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const headers = ['ID', 'Fecha', 'Concepto', 'Tipo de Gasto', 'Importe (EUR)'];
-        const rows = dataToExport.map(item => [
-            item.id,
-            item.date,
-            `"${(item.concept || '').replace(/"/g, '""')}"`,
-            (item.type || detectExpenseType(item.concept)) === 'fijo' ? 'Fijo' : 'Personal',
-            item.amount.toString().replace('.', ',')
-        ]);
+        const headers = ['ID', 'Fecha', 'Concepto', 'Categoría', 'Tipo de Gasto', 'Importe (EUR)'];
+        const rows = dataToExport.map(item => {
+            const category = getNormalizedCategory(item.category);
+            const type = getTypeForCategory(category);
+            return [
+                item.id,
+                item.date,
+                `"${(item.concept || '').replace(/"/g, '""')}"`,
+                getCategoryDisplayName(category),
+                type === 'fijo' ? 'Fijo' : 'Personal',
+                item.amount.toString().replace('.', ',')
+            ];
+        });
 
         const csvContent = [headers.join(';'), ...rows.map(row => row.join(';'))].join('\r\n');
         const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -702,14 +659,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         existingIds.add(id);
 
                         const concept = String(item.concept).trim();
-                        const classification = classifyPersonalExpense(concept);
+                        const category = getNormalizedCategory(item.category);
+                        const type = getTypeForCategory(category);
+
                         expenses.push({
                             id: id,
                             concept: concept,
                             amount: Math.abs(parseFloat(item.amount)),
                             date: item.date,
-                            type: item.type || classification.type,
-                            category: item.category || classification.category
+                            type: type,
+                            category: category
                         });
                         addedCount++;
                     }
@@ -727,11 +686,12 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsText(file);
     });
 
-    // Envío del formulario manual (Mis Gastos)
+    // Envío del formulario manual (Mis Gastos) usando selector de categoría
     form.addEventListener('submit', (e) => {
         e.preventDefault();
 
         const concept = conceptInput.value.trim();
+        const category = getNormalizedCategory(categorySelect.value);
         const amount = parseFloat(amountInput.value);
         const date = dateInput.value;
 
@@ -739,15 +699,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const classification = classifyPersonalExpense(concept);
+        const type = getTypeForCategory(category);
 
         const newExpense = {
             id: Date.now(),
             concept,
+            category,
             amount,
             date,
-            type: classification.type,
-            category: classification.category
+            type
         };
 
         expenses.push(newExpense);
@@ -849,7 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Clasificación automática de categorías exactas del piso
+    // Clasificación de categorías del piso
     function classifyPisoCategory(concept) {
         const text = (concept || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -1083,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 circle.setAttribute('stroke-width', strokeWidth);
                 circle.setAttribute('stroke-dasharray', `${dashLength} ${circumference}`);
                 circle.setAttribute('stroke-dashoffset', `${-accumulatedOffset}`);
-                pieChartSvg.appendChild(circle);
+                pisoPieChartSvg.appendChild(circle);
 
                 accumulatedOffset += dashLength;
             }

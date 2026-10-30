@@ -31,10 +31,11 @@
     /* Subcategorías internas del gráfico de Mis Gastos */
     --color-fixed-piso: #6366f1;
     --color-fixed-cochera: #8b5cf6;
+    --color-fixed-gasolina: #f97316;
     --color-fixed-otros: #94a3b8;
     --color-leisure: #38bdf8;
     --color-bars: #f59e0b;
-    --color-treats: #34d399;
+    --color-treats: #ec4899;
 
     /* Categorías exactas Gastos Piso */
     --piso-cat-ahorro: #10b981;
@@ -521,8 +522,14 @@ input:focus, select:focus {
     background-color: var(--bg-surface-elevated);
 }
 
-select option {
+select optgroup {
     background-color: var(--bg-surface);
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+select option {
+    background-color: var(--bg-surface-elevated);
     color: var(--text-primary);
 }
 
@@ -746,6 +753,7 @@ select option {
 /* Colores leyendas Mis Gastos */
 .legend-color.fixed-piso { background-color: var(--color-fixed-piso); }
 .legend-color.fixed-cochera { background-color: var(--color-fixed-cochera); }
+.legend-color.fixed-gasolina { background-color: var(--color-fixed-gasolina); }
 .legend-color.fixed-otros { background-color: var(--color-fixed-otros); }
 .legend-color.leisure { background-color: var(--color-leisure); }
 .legend-color.bars { background-color: var(--color-bars); }
@@ -1001,6 +1009,12 @@ select option {
     background-color: var(--color-personal-bg);
     color: var(--color-personal);
     border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.badge-category {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .badge-gasto {
